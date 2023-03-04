@@ -35,15 +35,6 @@ func (t *HashTable[V, H]) getSupportedFieldOptions() SupportedOptions[FieldOptio
 	return supported
 }
 
-func (t *HashTable[V, H]) getSupportedWriteOptions() SupportedOptions[WriteOption] {
-	supported := t.Backend.SupportedWriteOptions()
-	if supported == nil {
-		supported = DefaultSupportedWriteOptions
-	}
-
-	return supported
-}
-
 func (t *HashTable[V, H]) ValidateSchema() error {
 	err := t.getSchema().Validate()
 	if err != nil {
@@ -63,11 +54,7 @@ func (t *HashTable[V, H]) CreateOrUpdateSchema() error {
 }
 
 func (t *HashTable[V, H]) Get(hashKeys ...H) ([]V, error) {
-	genericKeys := make([]HashKey, len(hashKeys))
-	for i := range hashKeys {
-		genericKeys[i] = hashKeys[i]
-	}
-
+	genericKeys := convertHashKeyToInterface(hashKeys...)
 	dataRowFieldsList, err := t.Backend.GetMultiple(t.getSchema(), genericKeys)
 	if err != nil {
 		return nil, err
@@ -75,104 +62,64 @@ func (t *HashTable[V, H]) Get(hashKeys ...H) ([]V, error) {
 		return nil, errors.New("Datastore constraint not satisfied, more values than keys returned")
 	}
 
-	dataRowResults := make([]V, len(dataRowFieldsList))
-	for i, dataRowFields := range dataRowFieldsList {
-		err = t.getSchema().validateDataRowFields(dataRowFields)
-		if err != nil {
-			return nil, err
-		}
-
-		dataRowResults[i], err = t.DataRowFactory.CreateFromFields(dataRowFields)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return dataRowResults, nil
+	return convertDataRowFieldsToInterface(
+		dataRowFieldsList,
+		t.getSchema().validateDataRowFields,
+		t.DataRowFactory,
+	)
 }
 
-func (t *HashTable[V, H]) Add(hashKey H, data V, options Options[WriteOption]) (*H, error) {
-	vals, err := t.AddMultiple([]H{hashKey}, []V{data}, options)
+func (t *HashTable[V, H]) Add(hashKey H, data V) (H, error) {
+	hashKeys, err := t.AddMultiple([]H{hashKey}, []V{data})
 	if err != nil {
-		return nil, err
+		return t.HashKeyFactory.CreateDefault(), err
 	}
 
-	if len(vals) == 0 {
-		return nil, nil
+	if len(hashKeys) != 1 {
+		return t.HashKeyFactory.CreateDefault(), errors.New("Must return exactly one HashKey from Add")
 	} else {
-		return &vals[0], nil
+		return hashKeys[0], nil
 	}
 }
 
-func (t *HashTable[V, H]) AddMultiple(hashKeys []H, data []V, options Options[WriteOption]) ([]H, error) {
+func (t *HashTable[V, H]) AddMultiple(hashKeys []H, data []V) ([]H, error) {
 	if len(hashKeys) != len(data) {
 		return nil, errors.New("The number of HashKeys must match the number of data values")
 	}
 
-	err := t.getSchema().validateWriteOptions(options)
+	genericData := convertDataRowToInterface(data...)
+	genericKeys := convertHashKeyToInterface(hashKeys...)
+
+	hashKeyFieldsList, err := t.Backend.AddMultiple(t.getSchema(), genericKeys, genericData)
 	if err != nil {
 		return nil, err
+	} else if len(hashKeyFieldsList) != len(hashKeys) {
+		return nil, errors.New("Datastore constraint not satisfied, must return exactly the same number of HashKeys as were input")
 	}
 
-	genericKeys := make([]HashKey, len(hashKeys))
-	genericData := make([]DataRow, len(data))
-	for i := range hashKeys {
-		genericKeys[i] = hashKeys[i]
-		genericData[i] = data[i]
-	}
-
-	hashKeyFieldsList, err := t.Backend.AddMultiple(t.getSchema(), genericKeys, genericData, options)
-	if err != nil {
-		return nil, err
-	} else if len(hashKeyFieldsList) > len(hashKeys) {
-		return nil, errors.New("Datastore constraint not satisfied, more values than keys returned")
-	}
-
-	hashKeyResults := make([]H, len(hashKeyFieldsList))
-	for i, hashKeyFields := range hashKeyFieldsList {
-		err = t.getSchema().validateHashKeyFields(hashKeyFields)
-		if err != nil {
-			return nil, err
-		}
-
-		hashKeyResults[i], err = t.HashKeyFactory.CreateFromFields(hashKeyFields)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return hashKeyResults, nil
+	return convertDataRowFieldsToInterface[H](
+		hashKeyFieldsList,
+		t.getSchema().validateHashKeyFields,
+		t.HashKeyFactory,
+	)
 }
 
-func (t *HashTable[V, H]) Update(hashKey H, data V, options Options[UpdateOption]) error {
-	return t.UpdateMultiple([]H{hashKey}, []V{data}, options)
+func (t *HashTable[V, H]) Update(hashKey H, data V) error {
+	return t.UpdateMultiple([]H{hashKey}, []V{data})
 }
 
-func (t *HashTable[V, H]) UpdateMultiple(hashKeys []H, data []V, options Options[UpdateOption]) error {
+func (t *HashTable[V, H]) UpdateMultiple(hashKeys []H, data []V) error {
 	if len(hashKeys) != len(data) {
 		return errors.New("The number of HashKeys must match the number of data values")
 	}
 
-	err := t.getSchema().validateUpdateOptions(options)
-	if err != nil {
-		return err
-	}
+	genericData := convertDataRowToInterface(data...)
+	genericKeys := convertHashKeyToInterface(hashKeys...)
 
-	genericKeys := make([]HashKey, len(hashKeys))
-	genericData := make([]DataRow, len(data))
-	for i := range hashKeys {
-		genericKeys[i] = hashKeys[i]
-		genericData[i] = data[i]
-	}
-
-	return t.Backend.UpdateMultiple(t.getSchema(), genericKeys, genericData, options)
+	return t.Backend.UpdateMultiple(t.getSchema(), genericKeys, genericData)
 }
 
 func (t *HashTable[V, H]) Delete(hashKeys ...H) error {
-	genericKeys := make([]HashKey, len(hashKeys))
-	for i := range hashKeys {
-		genericKeys[i] = hashKeys[i]
-	}
-
-	return t.Backend.DeleteMutiple(t.getSchema(), genericKeys)
+	genericKeys := convertHashKeyToInterface(hashKeys...)
+	return t.Backend.DeleteMultiple(t.getSchema(), genericKeys)
 }

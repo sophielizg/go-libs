@@ -13,18 +13,12 @@ func (s *ScanTableSchema) validateDataRowFields(dataRow DataRowFields) error {
 
 type AppendTableSchema struct {
 	ScanTableSchema
-	SupportedWriteOptions SupportedOptions[WriteOption]
-}
-
-func (s *AppendTableSchema) validateWriteOptions(writeOptions Options[WriteOption]) error {
-	return validateOptions(s.DataRowSchemaFactory.GetFieldTypes(), writeOptions, s.SupportedWriteOptions)
 }
 
 type HashTableSchema struct {
 	ScanTableSchema
 	HashKeySchemaFactory
 	SupportedFieldOptions SupportedOptions[FieldOption]
-	SupportedWriteOptions SupportedOptions[WriteOption]
 }
 
 func (s *HashTableSchema) Validate() error {
@@ -42,35 +36,60 @@ func (s *HashTableSchema) validateHashKeyFields(hashKey DataRowFields) error {
 	return validateFieldTypes(hashKey, s.HashKeySchemaFactory)
 }
 
-func (s *HashTableSchema) validateFieldOptions() error {
-	return validateOptions(s.HashKeySchemaFactory.GetFieldTypes(), s.HashKeySchemaFactory.GetFieldOptions(), s.SupportedFieldOptions)
-}
-
-func (s *HashTableSchema) validateWriteOptions(writeOptions Options[WriteOption]) error {
-	return validateOptions(s.DataRowSchemaFactory.GetFieldTypes(), writeOptions, s.SupportedWriteOptions)
-}
-
-func (s *HashTableSchema) validateUpdateOptions(updateOptions Options[UpdateOption]) error {
-	writeOptions := Options[WriteOption]{}
-	includeExcludeOptions := Options[*IncludeExcludeOption]{}
-
-	for fieldName, option := range updateOptions {
-		if v, ok := option.(*IncludeExcludeOption); ok {
-			includeExcludeOptions[fieldName] = v
-		} else {
-			writeOptions[fieldName] = option
+func (s *HashTableSchema) validateOptionsForFieldTypes(options Options[FieldOption], fieldTypesList ...DataRowFieldTypes) error {
+	merged := DataRowFieldTypes{}
+	for _, fieldTypes := range fieldTypesList {
+		for k, v := range fieldTypes {
+			merged[k] = v
 		}
 	}
 
-	err := validateIncludeExcludeOptions(includeExcludeOptions)
-	if err != nil {
-		return err
-	}
+	return validateOptions(merged, options, s.SupportedFieldOptions)
+}
 
-	return validateOptions(s.HashKeySchemaFactory.GetFieldTypes(), writeOptions, s.SupportedWriteOptions)
+func (s *HashTableSchema) validateFieldOptions() error {
+	return s.validateOptionsForFieldTypes(
+		s.HashKeySchemaFactory.GetFieldOptions(),
+		s.DataRowSchemaFactory.GetFieldTypes(),
+		s.HashKeySchemaFactory.GetFieldTypes(),
+	)
 }
 
 type SortTableSchema struct {
 	HashTableSchema
 	SortKeySchemaFactory
+}
+
+func (s *SortTableSchema) Validate() error {
+	seen := map[string]bool{}
+
+	for dataField := range s.DataRowSchemaFactory.GetFieldTypes() {
+		seen[dataField] = true
+	}
+
+	hashFieldTypes := s.HashKeySchemaFactory.GetFieldTypes()
+	sortFieldTypes := s.SortKeySchemaFactory.GetFieldTypes()
+	for _, fieldTypes := range []DataRowFieldTypes{hashFieldTypes, sortFieldTypes} {
+		for fieldName := range fieldTypes {
+			if seen[fieldName] {
+				return errors.New("DataRow, HashKey, and SortKey cannot share any field names")
+			}
+			seen[fieldName] = true
+		}
+	}
+
+	return s.validateFieldOptions()
+}
+
+func (s *SortTableSchema) validateFieldOptions() error {
+	return s.validateOptionsForFieldTypes(
+		s.HashKeySchemaFactory.GetFieldOptions(),
+		s.DataRowSchemaFactory.GetFieldTypes(),
+		s.HashKeySchemaFactory.GetFieldTypes(),
+		s.SortKeySchemaFactory.GetFieldTypes(),
+	)
+}
+
+func (s *SortTableSchema) validateSortKeyFields(sortKey DataRowFields) error {
+	return validateFieldTypes(sortKey, s.SortKeySchemaFactory)
 }

@@ -12,15 +12,12 @@ type ScanTableBackend interface {
 type AppendTableBackend interface {
 	ScanTableBackend
 
-	// Configuration
-	SupportedWriteOptions() SupportedOptions[WriteOption]
-
 	// Schema
 	ValidateAppendTableSchema(schema *AppendTableSchema) error
 	CreateOrUpdateAppendTableSchema(schema *AppendTableSchema) error
 
 	// Data operations
-	AppendMultiple(schema *AppendTableSchema, data []DataRow, options Options[WriteOption]) error
+	AppendMultiple(schema *AppendTableSchema, data []DataRow) error
 }
 
 type HashTableBackend interface {
@@ -28,7 +25,6 @@ type HashTableBackend interface {
 
 	// Configuration
 	SupportedFieldOptions() SupportedOptions[FieldOption]
-	SupportedWriteOptions() SupportedOptions[WriteOption]
 
 	// Schema
 	ValidateHashTableSchema(schema *HashTableSchema) error
@@ -36,20 +32,28 @@ type HashTableBackend interface {
 
 	// Data operations
 	GetMultiple(schema *HashTableSchema, hashKeys []HashKey) ([]DataRowFields, error)
-	AddMultiple(schema *HashTableSchema, hashKeys []HashKey, data []DataRow, options Options[WriteOption]) ([]DataRowFields, error)
-	UpdateMultiple(schema *HashTableSchema, hashKeys []HashKey, data []DataRow, options Options[UpdateOption]) error
-	DeleteMutiple(schema *HashTableSchema, hashKeys []HashKey) error
+	AddMultiple(schema *HashTableSchema, hashKeys []HashKey, data []DataRow) ([]DataRowFields, error)
+	UpdateMultiple(schema *HashTableSchema, hashKeys []HashKey, data []DataRow) error
+	DeleteMultiple(schema *HashTableSchema, hashKeys []HashKey) error
 }
 
 type SortTableBackend interface {
-	HashTableBackend
+	ScanTableBackend
+
+	// Configuration
+	SupportedFieldOptions() SupportedOptions[FieldOption]
 
 	// Schema
 	ValidateSortTableSchema(schema *SortTableSchema) error
 	CreateOrUpdateSortTableSchema(schema *SortTableSchema) error
 
 	// Data operations
+	GetMultiple(schema *SortTableSchema, hashKeys []HashKey, sortKeys []SortKey) ([]DataRowFields, error)
+	AddMultiple(schema *SortTableSchema, hashKeys []HashKey, sortKeys []SortKey, data []DataRow) ([]DataRowFields, []DataRowFields, error)
+	UpdateMultiple(schema *SortTableSchema, hashKeys []HashKey, sortKeys []SortKey, data []DataRow) error
+	DeleteMultiple(schema *SortTableSchema, hashKeys []HashKey, sortKeys []SortKey) error
+
 	GetWithSortKey(schema *SortTableSchema, hashKey HashKey, sortKey SortKey) ([]DataRowFields, []DataRowFields, error)
-	UpdateWithSortKey(schema *SortTableSchema, hashKey HashKey, sortKey SortKey, data DataRow, options Options[UpdateOption]) error
+	UpdateWithSortKey(schema *SortTableSchema, hashKey HashKey, sortKey SortKey, data DataRow) error
 	DeleteWithSortKey(schema *SortTableSchema, hashKey HashKey, sortKey SortKey) error
 }

@@ -27,7 +27,7 @@ func (t *ScanTable[V]) Scan() (chan V, chan error) {
 
 	dataRowChan := make(chan V)
 	errorChan := make(chan error)
-	go func() {
+	go func(dataRowFieldsChan chan DataRowFields, scanErrorChan chan error, dataRowChan chan V, errorChan chan error) {
 		select {
 		case err := <-scanErrorChan:
 			errorChan <- err
@@ -45,7 +45,7 @@ func (t *ScanTable[V]) Scan() (chan V, chan error) {
 			}
 		}
 		close(errorChan)
-	}()
+	}(dataRowFieldsChan, scanErrorChan, dataRowChan, errorChan)
 
 	return dataRowChan, errorChan
 }

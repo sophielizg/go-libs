@@ -19,6 +19,7 @@ type DataRowSchemaFactory interface {
 type DataRowFactory[V DataRow] interface {
 	DataRowSchemaFactory
 	CreateFromFields(fields DataRowFields) (V, error)
+	CreateDefault() V
 }
 
 type HashKeySchemaFactory interface {

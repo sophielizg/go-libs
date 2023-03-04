@@ -50,28 +50,3 @@ func validateOptions[O Option](dataFieldTypes DataRowFieldTypes, dataFieldOption
 
 	return nil
 }
-
-func validateIncludeExcludeOptions(options Options[*IncludeExcludeOption]) error {
-	isInclude := false
-	isExclude := false
-
-	for _, option := range options {
-		if option.Include && option.Exclude {
-			return errors.New("IncludeExcludeOption must either include or exclude")
-		} else if option.Include {
-			isInclude = true
-			if isExclude {
-				return errors.New("Cannot apply include and exclude options simultaneously")
-			}
-		} else if option.Exclude {
-			isExclude = true
-			if isInclude {
-				return errors.New("Cannot apply include and exclude options simultaneously")
-			}
-		} else {
-			return errors.New("IncludeExcludeOption must either include or exclude")
-		}
-	}
-
-	return nil
-}
