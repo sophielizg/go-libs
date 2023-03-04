@@ -2,6 +2,15 @@ package datastore
 
 import "errors"
 
+func validateDataRowFieldName(fieldName string, dataRowFields DataRowFields) error {
+	_, ok := dataRowFields[fieldName]
+	if !ok {
+		return errors.New("fieldName must be a field in DataRow")
+	}
+
+	return nil
+}
+
 func validateFieldTypes(dataRowFields DataRowFields, fieldTypes FieldTypesFactory) error {
 	dataFieldTypes := fieldTypes.GetFieldTypes()
 
@@ -23,10 +32,7 @@ func validateFieldTypes(dataRowFields DataRowFields, fieldTypes FieldTypesFactor
 	return nil
 }
 
-func validateFieldOptions(fieldOptions HashKeySchemaFactory, supported SupportedFieldOptions) error {
-	dataFieldOptions := fieldOptions.GetFieldOptions()
-	dataFieldTypes := fieldOptions.GetFieldTypes()
-
+func validateOptions[O Option](dataFieldTypes DataRowFieldTypes, dataFieldOptions Options[O], supported SupportedOptions[O]) error {
 	if len(dataFieldOptions) > len(dataFieldTypes) {
 		return errors.New("DataRow.GetFieldOptions() must not return more fields than have types in DataRow")
 	}
@@ -37,8 +43,33 @@ func validateFieldOptions(fieldOptions HashKeySchemaFactory, supported Supported
 			return errors.New("DataRow.GetFieldTypes() must return all data fields")
 		} else if fieldType == nil {
 			return errors.New("DataRow must define types for every field")
-		} else if !isFieldOptionSupportedForType(fieldType, fieldOption, supported) {
+		} else if !isOptionSupportedForType(fieldType, fieldOption, supported) {
 			return errors.New("FieldOption is not supported for specified type")
+		}
+	}
+
+	return nil
+}
+
+func validateIncludeExcludeOptions(options Options[*IncludeExcludeOption]) error {
+	isInclude := false
+	isExclude := false
+
+	for _, option := range options {
+		if option.Include && option.Exclude {
+			return errors.New("IncludeExcludeOption must either include or exclude")
+		} else if option.Include {
+			isInclude = true
+			if isExclude {
+				return errors.New("Cannot apply include and exclude options simultaneously")
+			}
+		} else if option.Exclude {
+			isExclude = true
+			if isInclude {
+				return errors.New("Cannot apply include and exclude options simultaneously")
+			}
+		} else {
+			return errors.New("IncludeExcludeOption must either include or exclude")
 		}
 	}
 

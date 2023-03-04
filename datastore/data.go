@@ -4,8 +4,6 @@ type DataRowFields map[string]interface{}
 
 type DataRowFieldTypes map[string]FieldType
 
-type KeyFieldOptions map[string]FieldOption
-
 type DataRow interface {
 	GetFields() DataRowFields
 }

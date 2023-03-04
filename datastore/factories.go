@@ -5,7 +5,7 @@ type FieldTypesFactory interface {
 }
 
 type FieldOptionsFactory interface {
-	GetFieldOptions() KeyFieldOptions
+	GetFieldOptions() Options[FieldOption]
 }
 
 type SortOrderFactory interface {

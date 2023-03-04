@@ -15,8 +15,10 @@ type HashTable[V DataRow, H HashKey] struct {
 func (t *HashTable[V, H]) getSchema() *HashTableSchema {
 	if t.schema == nil {
 		t.schema = &HashTableSchema{
-			Name:                 t.Name,
-			DataRowSchemaFactory: t.DataRowFactory,
+			ScanTableSchema: ScanTableSchema{
+				Name:                 t.Name,
+				DataRowSchemaFactory: t.DataRowFactory,
+			},
 			HashKeySchemaFactory: t.HashKeyFactory,
 		}
 	}
@@ -24,7 +26,7 @@ func (t *HashTable[V, H]) getSchema() *HashTableSchema {
 	return t.schema
 }
 
-func (t *HashTable[V, H]) getSupportedFieldOptions() SupportedFieldOptions {
+func (t *HashTable[V, H]) getSupportedFieldOptions() SupportedOptions[FieldOption] {
 	supported := t.Backend.SupportedFieldOptions()
 	if supported == nil {
 		supported = DefaultSupportedFieldOptions
@@ -33,13 +35,17 @@ func (t *HashTable[V, H]) getSupportedFieldOptions() SupportedFieldOptions {
 	return supported
 }
 
-func (t *HashTable[V, H]) ValidateSchema() error {
-	err := t.getSchema().Validate()
-	if err != nil {
-		return err
+func (t *HashTable[V, H]) getSupportedWriteOptions() SupportedOptions[WriteOption] {
+	supported := t.Backend.SupportedWriteOptions()
+	if supported == nil {
+		supported = DefaultSupportedWriteOptions
 	}
 
-	err = validateFieldOptions(t.HashKeyFactory, t.getSupportedFieldOptions())
+	return supported
+}
+
+func (t *HashTable[V, H]) ValidateSchema() error {
+	err := t.getSchema().Validate()
 	if err != nil {
 		return err
 	}
@@ -85,7 +91,7 @@ func (t *HashTable[V, H]) Get(hashKeys ...H) ([]V, error) {
 	return dataRowResults, nil
 }
 
-func (t *HashTable[V, H]) Add(hashKey H, data V, options WriteOptions) (*H, error) {
+func (t *HashTable[V, H]) Add(hashKey H, data V, options Options[WriteOption]) (*H, error) {
 	vals, err := t.AddMultiple([]H{hashKey}, []V{data}, options)
 	if err != nil {
 		return nil, err
@@ -98,9 +104,14 @@ func (t *HashTable[V, H]) Add(hashKey H, data V, options WriteOptions) (*H, erro
 	}
 }
 
-func (t *HashTable[V, H]) AddMultiple(hashKeys []H, data []V, options WriteOptions) ([]H, error) {
+func (t *HashTable[V, H]) AddMultiple(hashKeys []H, data []V, options Options[WriteOption]) ([]H, error) {
 	if len(hashKeys) != len(data) {
 		return nil, errors.New("The number of HashKeys must match the number of data values")
+	}
+
+	err := t.getSchema().validateWriteOptions(options)
+	if err != nil {
+		return nil, err
 	}
 
 	genericKeys := make([]HashKey, len(hashKeys))
@@ -133,13 +144,18 @@ func (t *HashTable[V, H]) AddMultiple(hashKeys []H, data []V, options WriteOptio
 	return hashKeyResults, nil
 }
 
-func (t *HashTable[V, H]) Update(hashKey H, data V, options UpdateOptions) error {
+func (t *HashTable[V, H]) Update(hashKey H, data V, options Options[UpdateOption]) error {
 	return t.UpdateMultiple([]H{hashKey}, []V{data}, options)
 }
 
-func (t *HashTable[V, H]) UpdateMultiple(hashKeys []H, data []V, options UpdateOptions) error {
+func (t *HashTable[V, H]) UpdateMultiple(hashKeys []H, data []V, options Options[UpdateOption]) error {
 	if len(hashKeys) != len(data) {
 		return errors.New("The number of HashKeys must match the number of data values")
+	}
+
+	err := t.getSchema().validateUpdateOptions(options)
+	if err != nil {
+		return err
 	}
 
 	genericKeys := make([]HashKey, len(hashKeys))

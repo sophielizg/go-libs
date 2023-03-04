@@ -13,9 +13,14 @@ type SortTable[V DataRow, H HashKey, S SortKey] struct {
 func (t *SortTable[V, H, S]) getSchema() *SortTableSchema {
 	if t.schema == nil {
 		t.schema = &SortTableSchema{
-			Name:                 t.Name,
-			DataRowSchemaFactory: t.DataRowFactory,
-			HashKeySchemaFactory: t.HashKeyFactory,
+			HashTableSchema: HashTableSchema{
+				ScanTableSchema: ScanTableSchema{
+					Name:                 t.Name,
+					DataRowSchemaFactory: t.DataRowFactory,
+				},
+				HashKeySchemaFactory: t.HashKeyFactory,
+			},
+
 			SortKeySchemaFactory: t.SortKeyFactory,
 		}
 	}
@@ -71,14 +76,65 @@ func (t *SortTable[V, H, S]) ValidateSortKey(sortKey S) error {
 	return nil
 }
 
-// func (t *SortTable[V, H, S]) GetWithSortKey(hashKey H, sortKey S) ([]V, error) {
-// 	// call db implementation
-// }
+func (t *SortTable[V, H, S]) GetWithSortKey(hashKey H, sortKey S) ([]V, []H, error) {
+	err := t.ValidateSortKey(sortKey)
+	if err != nil {
+		return nil, nil, err
+	}
 
-// func (t *SortTable[V, H, S]) UpdateWithSortKey(hashKey H, sortKey S, data V, options UpdateOptions) error {
-// 	// call db implementation
-// }
+	dataRowFieldsList, hashKeyFieldsList, err := t.Backend.GetWithSortKey(t.getSchema(), hashKey, sortKey)
+	if err != nil {
+		return nil, nil, err
+	} else if len(dataRowFieldsList) != len(hashKeyFieldsList) {
+		return nil, nil, errors.New("Datastore constraint not satisfied, number of DataRows and HashKeys must be equal")
+	}
 
-// func (t *SortTable[V, H, S]) DeleteWithSortKey(hashKey H, sortKey S) error {
-// 	// call db implementation
-// }
+	dataRowResults := make([]V, len(dataRowFieldsList))
+	hashKeyResults := make([]H, len(hashKeyFieldsList))
+	for i := range dataRowFieldsList {
+		err = t.getSchema().validateDataRowFields(dataRowFieldsList[i])
+		if err != nil {
+			return nil, nil, err
+		}
+
+		dataRowResults[i], err = t.DataRowFactory.CreateFromFields(dataRowFieldsList[i])
+		if err != nil {
+			return nil, nil, err
+		}
+
+		err = t.getSchema().validateHashKeyFields(hashKeyFieldsList[i])
+		if err != nil {
+			return nil, nil, err
+		}
+
+		hashKeyResults[i], err = t.HashKeyFactory.CreateFromFields(hashKeyFieldsList[i])
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return dataRowResults, hashKeyResults, nil
+}
+
+func (t *SortTable[V, H, S]) UpdateWithSortKey(hashKey H, sortKey S, data V, options Options[UpdateOption]) error {
+	err := t.ValidateSortKey(sortKey)
+	if err != nil {
+		return err
+	}
+
+	err = t.getSchema().validateUpdateOptions(options)
+	if err != nil {
+		return err
+	}
+
+	return t.Backend.UpdateWithSortKey(t.getSchema(), hashKey, sortKey, data, options)
+}
+
+func (t *SortTable[V, H, S]) DeleteWithSortKey(hashKey H, sortKey S) error {
+	err := t.ValidateSortKey(sortKey)
+	if err != nil {
+		return err
+	}
+
+	return t.Backend.DeleteWithSortKey(t.getSchema(), hashKey, sortKey)
+}
