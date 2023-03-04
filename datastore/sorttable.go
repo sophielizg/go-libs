@@ -3,8 +3,9 @@ package datastore
 import "errors"
 
 type SortTable[V DataRow, H HashKey, S SortKey] struct {
-	HashTable[V, H]
 	Backend        SortTableBackend
+	DataRowFactory DataRowFactory[V]
+	HashKeyFactory HashKeyFactory[H]
 	SortKeyFactory SortKeyFactory[S]
 	Name           string
 	schema         *SortTableSchema
@@ -28,7 +29,7 @@ func (t *SortTable[V, H, S]) getSchema() *SortTableSchema {
 }
 
 func (t *SortTable[V, H, S]) ValidateSchema() error {
-	err := t.HashTable.ValidateSchema()
+	err := t.getSchema().Validate()
 	if err != nil {
 		return err
 	}
@@ -50,7 +51,7 @@ func (t *SortTable[V, H, S]) ValidateSchema() error {
 		}
 	}
 
-	return t.Backend.ValidateSortTableSchema(t.getSchema())
+	return t.Backend.ValidateSchema(t.getSchema())
 }
 
 func (t *SortTable[V, H, S]) ValidateSortKey(sortKey S) error {
@@ -58,14 +59,11 @@ func (t *SortTable[V, H, S]) ValidateSortKey(sortKey S) error {
 	sortKeyFields := sortKey.GetFields()
 	sortOrder := t.SortKeyFactory.GetSortOrder()
 
-	for i, field := range sortOrder {
+	for _, field := range sortOrder {
 		val, ok := sortKeyFields[field]
 		if !ok {
 			return errors.New("SortKey.GetFields() must return all fields in sort order")
 		} else if val == nil {
-			if i == 0 {
-				return errors.New("Leftmost SortKey field must be populated")
-			}
 			foundNil = true
 		} else if foundNil {
 			return errors.New("All SortKey fields on the left side must be populated")
@@ -73,6 +71,30 @@ func (t *SortTable[V, H, S]) ValidateSortKey(sortKey S) error {
 	}
 
 	return nil
+}
+
+func (t *SortTable[V, H, S]) Scan() (chan SortTableScan[V, H, S], chan error) {
+	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema())
+	return scan(
+		scanDataRowChan,
+		scanErrorChan,
+		func(scanDataRow SortTableScanFields) (SortTableScan[V, H, S], error) {
+			var err error
+			res := SortTableScan[V, H, S]{}
+
+			res.DataRow, err = t.DataRowFactory.CreateFromFields(scanDataRow.DataRow)
+
+			if err == nil {
+				res.HashKey, err = t.HashKeyFactory.CreateFromFields(scanDataRow.HashKey)
+			}
+
+			if err == nil {
+				res.SortKey, err = t.SortKeyFactory.CreateFromFields(scanDataRow.SortKey)
+			}
+
+			return res, err
+		},
+	)
 }
 
 func (t *SortTable[V, H, S]) Get(hashKey H, sortKey S) (V, error) {

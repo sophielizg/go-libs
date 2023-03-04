@@ -29,6 +29,14 @@ type DataRow interface {
 	GetFields() DataRowFields
 }
 
+type DataRowScanFields struct {
+	DataRow DataRowFields
+}
+
+type DataRowScan[V DataRow] struct {
+	DataRow V
+}
+
 func convertDataRowToInterface[T DataRow](dataRows ...T) []DataRow {
 	generic := make([]DataRow, len(dataRows))
 	for i := range dataRows {
@@ -42,6 +50,16 @@ type HashKey interface {
 	DataRow
 }
 
+type HashTableScanFields struct {
+	DataRowScanFields
+	HashKey DataRowFields
+}
+
+type HashTableScan[V DataRow, H HashKey] struct {
+	DataRowScan[V]
+	HashKey H
+}
+
 func convertHashKeyToInterface[T HashKey](hashKeys ...T) []HashKey {
 	generic := make([]HashKey, len(hashKeys))
 	for i := range hashKeys {
@@ -51,6 +69,20 @@ func convertHashKeyToInterface[T HashKey](hashKeys ...T) []HashKey {
 	return generic
 }
 
+type SortKey interface {
+	HashKey
+}
+
+type SortTableScanFields struct {
+	HashTableScanFields
+	SortKey DataRowFields
+}
+
+type SortTableScan[V DataRow, H HashKey, S SortKey] struct {
+	HashTableScan[V, H]
+	SortKey S
+}
+
 func convertSortKeyToInterface[T SortKey](sortKeys ...T) []SortKey {
 	generic := make([]SortKey, len(sortKeys))
 	for i := range sortKeys {
@@ -58,8 +90,4 @@ func convertSortKeyToInterface[T SortKey](sortKeys ...T) []SortKey {
 	}
 
 	return generic
-}
-
-type SortKey interface {
-	HashKey
 }

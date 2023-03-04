@@ -41,7 +41,7 @@ func (t *HashTable[V, H]) ValidateSchema() error {
 		return err
 	}
 
-	return t.Backend.ValidateHashTableSchema(t.getSchema())
+	return t.Backend.ValidateSchema(t.getSchema())
 }
 
 func (t *HashTable[V, H]) CreateOrUpdateSchema() error {
@@ -50,7 +50,27 @@ func (t *HashTable[V, H]) CreateOrUpdateSchema() error {
 		return err
 	}
 
-	return t.Backend.CreateOrUpdateHashTableSchema(t.getSchema())
+	return t.Backend.CreateOrUpdateSchema(t.getSchema())
+}
+
+func (t *HashTable[V, H]) Scan() (chan HashTableScan[V, H], chan error) {
+	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema())
+	return scan(
+		scanDataRowChan,
+		scanErrorChan,
+		func(scanDataRow HashTableScanFields) (HashTableScan[V, H], error) {
+			var err error
+			res := HashTableScan[V, H]{}
+
+			res.DataRow, err = t.DataRowFactory.CreateFromFields(scanDataRow.DataRow)
+
+			if err == nil {
+				res.HashKey, err = t.HashKeyFactory.CreateFromFields(scanDataRow.HashKey)
+			}
+
+			return res, err
+		},
+	)
 }
 
 func (t *HashTable[V, H]) Get(hashKeys ...H) ([]V, error) {

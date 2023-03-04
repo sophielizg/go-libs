@@ -19,33 +19,23 @@ func (t *ScanTable[V]) getSchema() *ScanTableSchema {
 }
 
 func (t *ScanTable[V]) ValidateSchema() error {
-	return t.Backend.ValidateScanTableSchema(t.getSchema())
+	return t.Backend.ValidateSchema(t.getSchema())
 }
 
-func (t *ScanTable[V]) Scan() (chan V, chan error) {
-	dataRowFieldsChan, scanErrorChan := t.Backend.Scan(t.getSchema())
+func (t *ScanTable[V]) CreateOrUpdateSchema() error {
+	return t.Backend.CreateOrUpdateSchema(t.getSchema())
+}
 
-	dataRowChan := make(chan V)
-	errorChan := make(chan error)
-	go func(dataRowFieldsChan chan DataRowFields, scanErrorChan chan error, dataRowChan chan V, errorChan chan error) {
-		select {
-		case err := <-scanErrorChan:
-			errorChan <- err
-		case dataRowFields, more := <-dataRowFieldsChan:
-			dataRow, err := t.DataRowFactory.CreateFromFields(dataRowFields)
-
-			if err != nil {
-				errorChan <- err
-			} else {
-				dataRowChan <- dataRow
-			}
-
-			if !more {
-				close(dataRowChan)
-			}
-		}
-		close(errorChan)
-	}(dataRowFieldsChan, scanErrorChan, dataRowChan, errorChan)
-
-	return dataRowChan, errorChan
+func (t *ScanTable[V]) Scan() (chan DataRowScan[V], chan error) {
+	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema())
+	return scan(
+		scanDataRowChan,
+		scanErrorChan,
+		func(scanDataRow DataRowScanFields) (DataRowScan[V], error) {
+			var err error
+			res := DataRowScan[V]{}
+			res.DataRow, err = t.DataRowFactory.CreateFromFields(scanDataRow.DataRow)
+			return res, err
+		},
+	)
 }

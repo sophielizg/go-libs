@@ -21,7 +21,25 @@ func (t *AppendTable[V]) getSchema() *AppendTableSchema {
 }
 
 func (t *AppendTable[V]) ValidateSchema() error {
-	return t.Backend.ValidateAppendTableSchema(t.getSchema())
+	return t.Backend.ValidateSchema(t.getSchema())
+}
+
+func (t *AppendTable[V]) CreateOrUpdateSchema() error {
+	return t.Backend.CreateOrUpdateSchema(t.getSchema())
+}
+
+func (t *AppendTable[V]) Scan() (chan DataRowScan[V], chan error) {
+	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema())
+	return scan(
+		scanDataRowChan,
+		scanErrorChan,
+		func(scanDataRow DataRowScanFields) (DataRowScan[V], error) {
+			var err error
+			res := DataRowScan[V]{}
+			res.DataRow, err = t.DataRowFactory.CreateFromFields(scanDataRow.DataRow)
+			return res, err
+		},
+	)
 }
 
 func (t *AppendTable[V]) AppendMultiple(data []V) error {
