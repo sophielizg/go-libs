@@ -8,7 +8,7 @@ type ScanTableSchema struct {
 }
 
 func (s *ScanTableSchema) validateDataRowFields(dataRow DataRowFields) error {
-	return validateFieldTypes(dataRow, s.DataRowSchemaFactory)
+	return validateFields(dataRow, s.DataRowSchemaFactory)
 }
 
 type AppendTableSchema struct {
@@ -23,17 +23,24 @@ type HashTableSchema struct {
 
 func (s *HashTableSchema) Validate() error {
 	dataFieldTypes := s.DataRowSchemaFactory.GetFieldTypes()
-	for hashField := range s.HashKeySchemaFactory.GetFieldTypes() {
+	hashFieldTypes := s.HashKeySchemaFactory.GetFieldTypes()
+
+	for hashField := range hashFieldTypes {
 		if _, ok := dataFieldTypes[hashField]; ok {
 			return errors.New("DataRow and HashKey cannot share any field names")
 		}
+	}
+
+	err := validateKeyFieldTypes(hashFieldTypes)
+	if err != nil {
+		return err
 	}
 
 	return s.validateFieldOptions()
 }
 
 func (s *HashTableSchema) validateHashKeyFields(hashKey DataRowFields) error {
-	return validateFieldTypes(hashKey, s.HashKeySchemaFactory)
+	return validateFields(hashKey, s.HashKeySchemaFactory)
 }
 
 func (s *HashTableSchema) validateOptionsForFieldTypes(options Options[FieldOption], fieldTypesList ...DataRowFieldTypes) error {
@@ -78,6 +85,16 @@ func (s *SortTableSchema) Validate() error {
 		}
 	}
 
+	err := validateKeyFieldTypes(hashFieldTypes)
+	if err != nil {
+		return err
+	}
+
+	err = validateKeyFieldTypes(sortFieldTypes)
+	if err != nil {
+		return err
+	}
+
 	return s.validateFieldOptions()
 }
 
@@ -91,5 +108,5 @@ func (s *SortTableSchema) validateFieldOptions() error {
 }
 
 func (s *SortTableSchema) validateSortKeyFields(sortKey DataRowFields) error {
-	return validateFieldTypes(sortKey, s.SortKeySchemaFactory)
+	return validateFields(sortKey, s.SortKeySchemaFactory)
 }

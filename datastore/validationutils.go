@@ -11,7 +11,7 @@ func validateDataRowFieldName(fieldName string, dataRowFields DataRowFields) err
 	return nil
 }
 
-func validateFieldTypes(dataRowFields DataRowFields, fieldTypes FieldTypesFactory) error {
+func validateFields(dataRowFields DataRowFields, fieldTypes FieldTypesFactory) error {
 	dataFieldTypes := fieldTypes.GetFieldTypes()
 
 	if len(dataFieldTypes) != len(dataRowFields) {
@@ -26,6 +26,16 @@ func validateFieldTypes(dataRowFields DataRowFields, fieldTypes FieldTypesFactor
 			return errors.New("DataRow must define types for every field")
 		} else if !fieldType.IsType(field) {
 			return errors.New("Each DataRow field must satisfy its type")
+		}
+	}
+
+	return nil
+}
+
+func validateKeyFieldTypes(fieldTypes DataRowFieldTypes) error {
+	for _, fieldType := range fieldTypes {
+		if !fieldType.IsComparable() {
+			return errors.New("All types in key must be comparable")
 		}
 	}
 
