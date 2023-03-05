@@ -1,30 +1,16 @@
 package datastore
 
-type Option interface {
-	// Unique name to identify the option
-	Name() string
-	OverrideSupported() bool
-}
+type Options map[string][]string
 
-type Options[O Option] map[string]O
+type OptionTypes map[string]bool
 
-type SupportedOptions[O Option] map[FieldType][]O
+type SupportedOptions map[FieldType]OptionTypes
 
-func isOptionSupportedForType[O Option](fieldType FieldType, fieldOption O, supported SupportedOptions[O]) bool {
-	if fieldOption.OverrideSupported() {
-		return true
-	}
-
-	supportedList, ok := supported[fieldType]
+func isOptionSupportedForType(fieldType FieldType, fieldOption string, supported SupportedOptions) bool {
+	supportedMap, ok := supported[fieldType]
 	if !ok {
 		return false
 	}
 
-	for _, option := range supportedList {
-		if fieldOption.Name() == option.Name() {
-			return true
-		}
-	}
-
-	return false
+	return supportedMap[fieldOption]
 }

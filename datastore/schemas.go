@@ -18,7 +18,7 @@ type AppendTableSchema struct {
 type HashTableSchema struct {
 	ScanTableSchema
 	HashKeySchemaFactory
-	SupportedFieldOptions SupportedOptions[FieldOption]
+	SupportedFieldOptions SupportedOptions
 }
 
 func (s *HashTableSchema) Validate() error {
@@ -43,7 +43,7 @@ func (s *HashTableSchema) validateHashKeyFields(hashKey DataRowFields) error {
 	return validateFields(hashKey, s.HashKeySchemaFactory)
 }
 
-func (s *HashTableSchema) validateOptionsForFieldTypes(options Options[FieldOption], fieldTypesList ...DataRowFieldTypes) error {
+func (s *HashTableSchema) validateOptionsForFieldTypes(options Options, fieldTypesList ...DataRowFieldTypes) error {
 	merged := DataRowFieldTypes{}
 	for _, fieldTypes := range fieldTypesList {
 		for k, v := range fieldTypes {

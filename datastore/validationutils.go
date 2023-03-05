@@ -42,19 +42,23 @@ func validateKeyFieldTypes(fieldTypes DataRowFieldTypes) error {
 	return nil
 }
 
-func validateOptions[O Option](dataFieldTypes DataRowFieldTypes, dataFieldOptions Options[O], supported SupportedOptions[O]) error {
+func validateOptions(dataFieldTypes DataRowFieldTypes, dataFieldOptions Options, supported SupportedOptions) error {
 	if len(dataFieldOptions) > len(dataFieldTypes) {
 		return errors.New("DataRow.GetFieldOptions() must not return more fields than have types in DataRow")
 	}
 
-	for fieldName, fieldOption := range dataFieldOptions {
+	for fieldName, fieldOptions := range dataFieldOptions {
 		fieldType, ok := dataFieldTypes[fieldName]
 		if !ok {
 			return errors.New("DataRow.GetFieldTypes() must return all data fields")
 		} else if fieldType == nil {
 			return errors.New("DataRow must define types for every field")
-		} else if !isOptionSupportedForType(fieldType, fieldOption, supported) {
-			return errors.New("FieldOption is not supported for specified type")
+		}
+
+		for _, option := range fieldOptions {
+			if !isOptionSupportedForType(fieldType, option, supported) {
+				return errors.New("Option is not supported for specified type")
+			}
 		}
 	}
 

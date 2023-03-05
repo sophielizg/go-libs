@@ -55,18 +55,23 @@ func (t *SortTable[V, H, S]) ValidateSchema() error {
 }
 
 func (t *SortTable[V, H, S]) ValidateSortKey(sortKey S) error {
-	foundNil := false
-	sortKeyFields := sortKey.GetFields()
+	foundEmpty := false
+	fieldComparators := sortKey.GetComparators()
 	sortOrder := t.SortKeyFactory.GetSortOrder()
 
-	for _, field := range sortOrder {
-		val, ok := sortKeyFields[field]
-		if !ok {
-			return errors.New("SortKey.GetFields() must return all fields in sort order")
-		} else if val == nil {
-			foundNil = true
-		} else if foundNil {
-			return errors.New("All SortKey fields on the left side must be populated")
+	for _, fieldName := range sortOrder {
+		comparators, ok := fieldComparators[fieldName]
+		if !ok || comparators == nil {
+			foundEmpty = true
+			continue
+		} else if foundEmpty {
+			return errors.New("All SortKey fields on the left side must be included in compare")
+		}
+
+		for _, comparator := range comparators {
+			if !ComparatorTypes[comparator] {
+				return errors.New("Found invalid type in comparators")
+			}
 		}
 	}
 

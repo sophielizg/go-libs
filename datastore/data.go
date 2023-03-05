@@ -71,6 +71,7 @@ func convertHashKeyToInterface[T HashKey](hashKeys ...T) []HashKey {
 
 type SortKey interface {
 	HashKey
+	GetComparators() Options
 }
 
 type SortTableScanFields struct {

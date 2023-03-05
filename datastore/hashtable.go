@@ -26,7 +26,7 @@ func (t *HashTable[V, H]) getSchema() *HashTableSchema {
 	return t.schema
 }
 
-func (t *HashTable[V, H]) getSupportedFieldOptions() SupportedOptions[FieldOption] {
+func (t *HashTable[V, H]) getSupportedFieldOptions() SupportedOptions {
 	supported := t.Backend.SupportedFieldOptions()
 	if supported == nil {
 		supported = DefaultSupportedFieldOptions

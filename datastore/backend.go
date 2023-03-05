@@ -21,7 +21,7 @@ type AppendTableBackend interface {
 
 type HashTableBackend interface {
 	// Configuration
-	SupportedFieldOptions() SupportedOptions[FieldOption]
+	SupportedFieldOptions() SupportedOptions
 
 	// Schema
 	ValidateSchema(schema *HashTableSchema) error
@@ -38,7 +38,7 @@ type HashTableBackend interface {
 
 type SortTableBackend interface {
 	// Configuration
-	SupportedFieldOptions() SupportedOptions[FieldOption]
+	SupportedFieldOptions() SupportedOptions
 
 	// Schema
 	ValidateSchema(schema *SortTableSchema) error

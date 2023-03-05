@@ -1,20 +1,18 @@
 package datastore
 
-type FieldOption interface {
-	Option
-}
+var (
+	FieldOptions = struct {
+		AutoGenerateOption string
+	}{
+		"AutoGenerateOption",
+	}
 
-var DefaultSupportedFieldOptions = SupportedOptions[FieldOption]{
-	&IntField{}:    []FieldOption{&AutoGenerateOption{}},
-	&StringField{}: []FieldOption{&AutoGenerateOption{}},
-}
+	FieldOptionTypes = OptionTypes{
+		FieldOptions.AutoGenerateOption: true,
+	}
+)
 
-type AutoGenerateOption struct{}
-
-func (o *AutoGenerateOption) Name() string {
-	return "AutoGenerateOption"
-}
-
-func (o *AutoGenerateOption) OverrideSupported() bool {
-	return false
+var DefaultSupportedFieldOptions = SupportedOptions{
+	&IntField{}:    FieldOptionTypes,
+	&StringField{}: FieldOptionTypes,
 }
