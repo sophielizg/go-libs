@@ -78,12 +78,13 @@ func (t *SortTable[V, H, S]) ValidateSortKey(sortKey S) error {
 	return nil
 }
 
-func (t *SortTable[V, H, S]) Scan() (chan SortTableScan[V, H, S], chan error) {
-	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema())
+func (t *SortTable[V, H, S]) Scan(batchSize int) (chan SortTableScan[V, H, S], chan error) {
+	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema(), batchSize)
 	return scan(
+		batchSize,
 		scanDataRowChan,
 		scanErrorChan,
-		func(scanDataRow SortTableScanFields) (SortTableScan[V, H, S], error) {
+		func(scanDataRow *SortTableScanFields) (SortTableScan[V, H, S], error) {
 			var err error
 			res := SortTableScan[V, H, S]{}
 

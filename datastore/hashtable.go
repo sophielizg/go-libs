@@ -53,12 +53,13 @@ func (t *HashTable[V, H]) CreateOrUpdateSchema() error {
 	return t.Backend.CreateOrUpdateSchema(t.getSchema())
 }
 
-func (t *HashTable[V, H]) Scan() (chan HashTableScan[V, H], chan error) {
-	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema())
+func (t *HashTable[V, H]) Scan(batchSize int) (chan HashTableScan[V, H], chan error) {
+	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema(), batchSize)
 	return scan(
+		batchSize,
 		scanDataRowChan,
 		scanErrorChan,
-		func(scanDataRow HashTableScanFields) (HashTableScan[V, H], error) {
+		func(scanDataRow *HashTableScanFields) (HashTableScan[V, H], error) {
 			var err error
 			res := HashTableScan[V, H]{}
 

@@ -28,12 +28,13 @@ func (t *AppendTable[V]) CreateOrUpdateSchema() error {
 	return t.Backend.CreateOrUpdateSchema(t.getSchema())
 }
 
-func (t *AppendTable[V]) Scan() (chan DataRowScan[V], chan error) {
-	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema())
+func (t *AppendTable[V]) Scan(batchSize int) (chan DataRowScan[V], chan error) {
+	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema(), batchSize)
 	return scan(
+		batchSize,
 		scanDataRowChan,
 		scanErrorChan,
-		func(scanDataRow DataRowScanFields) (DataRowScan[V], error) {
+		func(scanDataRow *DataRowScanFields) (DataRowScan[V], error) {
 			var err error
 			res := DataRowScan[V]{}
 			res.DataRow, err = t.DataRowFactory.CreateFromFields(scanDataRow.DataRow)
@@ -42,11 +43,11 @@ func (t *AppendTable[V]) Scan() (chan DataRowScan[V], chan error) {
 	)
 }
 
-func (t *AppendTable[V]) AppendMultiple(data []V) error {
-	genericData := make([]DataRow, len(data))
-	for i := range data {
-		genericData[i] = data[i]
-	}
+func (t *AppendTable[V]) Append(data V) error {
+	return t.AppendMultiple([]V{data})
+}
 
+func (t *AppendTable[V]) AppendMultiple(data []V) error {
+	genericData := convertDataRowToInterface(data...)
 	return t.Backend.AppendMultiple(t.getSchema(), genericData)
 }

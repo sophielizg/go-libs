@@ -26,12 +26,13 @@ func (t *ScanTable[V]) CreateOrUpdateSchema() error {
 	return t.Backend.CreateOrUpdateSchema(t.getSchema())
 }
 
-func (t *ScanTable[V]) Scan() (chan DataRowScan[V], chan error) {
-	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema())
+func (t *ScanTable[V]) Scan(batchSize int) (chan DataRowScan[V], chan error) {
+	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema(), batchSize)
 	return scan(
+		batchSize,
 		scanDataRowChan,
 		scanErrorChan,
-		func(scanDataRow DataRowScanFields) (DataRowScan[V], error) {
+		func(scanDataRow *DataRowScanFields) (DataRowScan[V], error) {
 			var err error
 			res := DataRowScan[V]{}
 			res.DataRow, err = t.DataRowFactory.CreateFromFields(scanDataRow.DataRow)
