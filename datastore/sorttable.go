@@ -5,8 +5,8 @@ import "errors"
 type SortTable[V DataRow, H HashKey, S SortKey] struct {
 	Backend        SortTableBackend
 	DataRowFactory DataRowFactory[V]
-	HashKeyFactory HashKeyFactory[H]
-	SortKeyFactory SortKeyFactory[S]
+	HashKeyFactory KeyFactory[H]
+	SortKeyFactory KeyFactory[S]
 	Name           string
 	schema         *SortTableSchema
 }
@@ -15,7 +15,7 @@ func (t *SortTable[V, H, S]) getSchema() *SortTableSchema {
 	if t.schema == nil {
 		t.schema = &SortTableSchema{
 			HashTableSchema: HashTableSchema{
-				ScanTableSchema: ScanTableSchema{
+				BaseTableSchema: BaseTableSchema{
 					Name:                 t.Name,
 					DataRowSchemaFactory: t.DataRowFactory,
 				},

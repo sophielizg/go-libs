@@ -7,7 +7,7 @@ import (
 type HashTable[V DataRow, H HashKey] struct {
 	Backend        HashTableBackend
 	DataRowFactory DataRowFactory[V]
-	HashKeyFactory HashKeyFactory[H]
+	HashKeyFactory KeyFactory[H]
 	Name           string
 	schema         *HashTableSchema
 }
@@ -15,7 +15,7 @@ type HashTable[V DataRow, H HashKey] struct {
 func (t *HashTable[V, H]) getSchema() *HashTableSchema {
 	if t.schema == nil {
 		t.schema = &HashTableSchema{
-			ScanTableSchema: ScanTableSchema{
+			BaseTableSchema: BaseTableSchema{
 				Name:                 t.Name,
 				DataRowSchemaFactory: t.DataRowFactory,
 			},

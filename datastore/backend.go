@@ -1,14 +1,5 @@
 package datastore
 
-type ScanTableBackend interface {
-	// Schema
-	ValidateSchema(schema *ScanTableSchema) error
-	CreateOrUpdateSchema(schema *ScanTableSchema) error
-
-	// Data operations
-	Scan(schema *ScanTableSchema, batchSize int) (chan *DataRowScanFields, chan error)
-}
-
 type AppendTableBackend interface {
 	// Schema
 	ValidateSchema(schema *AppendTableSchema) error

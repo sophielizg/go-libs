@@ -2,22 +2,22 @@ package datastore
 
 import "errors"
 
-type ScanTableSchema struct {
+type BaseTableSchema struct {
 	DataRowSchemaFactory
 	Name string
 }
 
-func (s *ScanTableSchema) validateDataRowFields(dataRow DataRowFields) error {
+func (s *BaseTableSchema) validateDataRowFields(dataRow DataRowFields) error {
 	return validateFields(dataRow, s.DataRowSchemaFactory)
 }
 
 type AppendTableSchema struct {
-	ScanTableSchema
+	BaseTableSchema
 }
 
 type HashTableSchema struct {
-	ScanTableSchema
-	HashKeySchemaFactory
+	BaseTableSchema
+	HashKeySchemaFactory  KeySchemaFactory
 	SupportedFieldOptions SupportedOptions
 }
 
@@ -64,7 +64,7 @@ func (s *HashTableSchema) validateFieldOptions() error {
 
 type SortTableSchema struct {
 	HashTableSchema
-	SortKeySchemaFactory
+	SortKeySchemaFactory KeySchemaFactory
 }
 
 func (s *SortTableSchema) Validate() error {

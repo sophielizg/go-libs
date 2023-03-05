@@ -10,7 +10,7 @@ type AppendTable[V DataRow] struct {
 func (t *AppendTable[V]) getSchema() *AppendTableSchema {
 	if t.schema == nil {
 		t.schema = &AppendTableSchema{
-			ScanTableSchema: ScanTableSchema{
+			BaseTableSchema: BaseTableSchema{
 				Name:                 t.Name,
 				DataRowSchemaFactory: t.DataRowFactory,
 			},
@@ -43,11 +43,7 @@ func (t *AppendTable[V]) Scan(batchSize int) (chan DataRowScan[V], chan error) {
 	)
 }
 
-func (t *AppendTable[V]) Append(data V) error {
-	return t.AppendMultiple([]V{data})
-}
-
-func (t *AppendTable[V]) AppendMultiple(data []V) error {
+func (t *AppendTable[V]) Append(data ...V) error {
 	genericData := convertDataRowToInterface(data...)
 	return t.Backend.AppendMultiple(t.getSchema(), genericData)
 }

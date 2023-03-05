@@ -22,22 +22,13 @@ type DataRowFactory[V DataRow] interface {
 	CreateDefault() V
 }
 
-type HashKeySchemaFactory interface {
+type KeySchemaFactory interface {
 	DataRowSchemaFactory
 	FieldOptionsFactory
-}
-
-type HashKeyFactory[H HashKey] interface {
-	DataRowFactory[H]
-	HashKeySchemaFactory
-}
-
-type SortKeySchemaFactory interface {
-	HashKeySchemaFactory
 	SortOrderFactory
 }
 
-type SortKeyFactory[S SortKey] interface {
-	HashKeyFactory[S]
-	SortKeySchemaFactory
+type KeyFactory[H HashKey] interface {
+	DataRowFactory[H]
+	KeySchemaFactory
 }
