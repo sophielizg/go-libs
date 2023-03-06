@@ -1,12 +1,14 @@
 package datastore
 
-type Options map[string][]string
+type Option = int8
 
-type OptionTypes map[string]bool
+type Options map[string][]Option
+
+type OptionTypes map[Option]bool
 
 type SupportedOptions map[string]OptionTypes
 
-func isOptionSupportedForType(fieldType FieldType, fieldOption string, supported SupportedOptions) bool {
+func isOptionSupportedForType(fieldType FieldType, fieldOption Option, supported SupportedOptions) bool {
 	supportedMap, ok := supported[fieldType.TypeName()]
 	if !ok {
 		return false

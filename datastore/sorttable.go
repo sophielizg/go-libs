@@ -79,7 +79,7 @@ func (t *SortTable[V, H, S]) ValidateSortKey(sortKey S) error {
 		}
 
 		for _, comparator := range comparators {
-			if !ComparatorTypes[comparator] {
+			if !isComparator(comparator) {
 				return errors.New("Found invalid type in comparators")
 			}
 		}

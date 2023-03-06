@@ -7,9 +7,9 @@ import (
 )
 
 type PurchaseSortKeyComparators struct {
-	PurchaseTime []string
-	ItemBrand    []string
-	ItemName     []string
+	PurchaseTime []datastore.Option
+	ItemBrand    []datastore.Option
+	ItemName     []datastore.Option
 }
 
 type PurchaseSortKey struct {
