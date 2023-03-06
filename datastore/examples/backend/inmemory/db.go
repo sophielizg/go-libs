@@ -34,22 +34,23 @@ func scanDb(tableName string, batchSize int) (chan *datastore.DataRowScanFields,
 	errorChan := make(chan error, 1)
 
 	go func() {
+		defer close(outChan)
+		defer close(errorChan)
+
 		table := db[tableName]
 		insertOrder := dbInsertOrder[tableName]
 		if table == nil || insertOrder == nil {
 			errorChan <- errors.New("No table exists with given schema name")
-		} else {
-			for _, key := range insertOrder {
-				for _, dataRowFields := range table[key] {
-					outChan <- &datastore.DataRowScanFields{
-						DataRow: dataRowFields,
-					}
+			return
+		}
+
+		for _, key := range insertOrder {
+			for _, dataRowFields := range table[key] {
+				outChan <- &datastore.DataRowScanFields{
+					DataRow: dataRowFields,
 				}
 			}
 		}
-
-		close(outChan)
-		close(errorChan)
 	}()
 
 	return outChan, errorChan

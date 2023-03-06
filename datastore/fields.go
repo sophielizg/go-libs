@@ -166,3 +166,33 @@ func (f *TimeField) IsType(x interface{}) bool {
 
 	return isType
 }
+
+type FloatField struct {
+	Nullable bool
+	Large    bool
+}
+
+func (f *FloatField) IsNullable() bool {
+	return f.Nullable
+}
+
+func (f *FloatField) IsComparable() bool {
+	return true
+}
+
+func (f *FloatField) IsType(x interface{}) bool {
+	var isType bool
+
+	switch true {
+	case f.Nullable && f.Large:
+		_, isType = x.(*float64)
+	case f.Nullable && !f.Large:
+		_, isType = x.(*float32)
+	case !f.Nullable && f.Large:
+		_, isType = x.(float64)
+	case !f.Nullable && !f.Large:
+		_, isType = x.(float32)
+	}
+
+	return isType
+}

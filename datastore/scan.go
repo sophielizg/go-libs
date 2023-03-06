@@ -4,6 +4,9 @@ func scan[I any, O any](batchSize int, inChan chan I, inErrorChan chan error, co
 	outChan := make(chan O, 1)
 	outErrorChan := make(chan error, 1)
 	go func() {
+		defer close(outChan)
+		defer close(outErrorChan)
+
 		for {
 			select {
 			case err, more := <-inErrorChan:
@@ -17,7 +20,6 @@ func scan[I any, O any](batchSize int, inChan chan I, inErrorChan chan error, co
 			case inFields, more := <-inChan:
 				if !more {
 					inChan = nil
-					close(outChan)
 					break
 				}
 
@@ -34,7 +36,6 @@ func scan[I any, O any](batchSize int, inChan chan I, inErrorChan chan error, co
 				break
 			}
 		}
-		close(outErrorChan)
 	}()
 
 	return outChan, outErrorChan
