@@ -1,9 +1,7 @@
 package inmemory
 
 import (
-	"encoding/json"
 	"errors"
-	"math/rand"
 
 	"github.com/sophielizg/go-libs/datastore"
 )
@@ -12,42 +10,57 @@ type Table = map[string][]datastore.DataRowFields
 
 type InsertOrder = []string
 
-var (
-	db            = map[string]Table{}
-	dbInsertOrder = map[string]InsertOrder{}
-)
+type InMemoryDatastoreConnection struct {
+	db            map[string]Table
+	dbInsertOrder map[string]InsertOrder
+}
 
-const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+func (c *InMemoryDatastoreConnection) CreateOrUpdateSchema(tableName string) error {
+	if c.db == nil {
+		c.db = map[string]Table{}
+	}
 
-func createOrUpdateDbSchema(tableName string) error {
-	table, ok := db[tableName]
+	if c.dbInsertOrder == nil {
+		c.dbInsertOrder = map[string]InsertOrder{}
+	}
+
+	table, ok := c.db[tableName]
 	if !ok || table == nil {
-		db[tableName] = Table{}
-		dbInsertOrder[tableName] = InsertOrder{}
+		c.db[tableName] = Table{}
+		c.dbInsertOrder[tableName] = InsertOrder{}
 	}
 
 	return nil
 }
 
-func scanDb(tableName string, batchSize int) (chan *datastore.DataRowScanFields, chan error) {
-	outChan := make(chan *datastore.DataRowScanFields, batchSize)
+func (c *InMemoryDatastoreConnection) Scan(tableName string, batchSize int) (chan *datastore.HashTableScanFields, chan error) {
+	outChan := make(chan *datastore.HashTableScanFields, batchSize)
 	errorChan := make(chan error, 1)
 
 	go func() {
 		defer close(outChan)
 		defer close(errorChan)
 
-		table := db[tableName]
-		insertOrder := dbInsertOrder[tableName]
+		table := c.db[tableName]
+		insertOrder := c.dbInsertOrder[tableName]
 		if table == nil || insertOrder == nil {
 			errorChan <- errors.New("No table exists with given schema name")
 			return
 		}
 
 		for _, key := range insertOrder {
+			hashKey, err := unstringifyHashKey(key)
+			if err != nil {
+				errorChan <- err
+				continue
+			}
+
 			for _, dataRowFields := range table[key] {
-				outChan <- &datastore.DataRowScanFields{
-					DataRow: dataRowFields,
+				outChan <- &datastore.HashTableScanFields{
+					DataRowScanFields: datastore.DataRowScanFields{
+						DataRow: dataRowFields,
+					},
+					HashKey: hashKey,
 				}
 			}
 		}
@@ -56,36 +69,69 @@ func scanDb(tableName string, batchSize int) (chan *datastore.DataRowScanFields,
 	return outChan, errorChan
 }
 
-func generateStringKey(length int) string {
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(b)
-}
-
-func stringifyHashKey(hashKey datastore.DataRowFields) (string, error) {
-	bytes, err := json.Marshal(hashKey)
+func (c *InMemoryDatastoreConnection) Get(tableName string, hashKey datastore.DataRowFields) ([]datastore.DataRowFields, error) {
+	key, err := stringifyHashKey(hashKey)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(bytes), nil
+	table := c.db[tableName]
+	if table == nil {
+		return nil, errors.New("No table exists with given schema name")
+	}
+
+	return table[key], nil
 }
 
-func insertWithHashKey(tableName string, hashKey datastore.DataRowFields, dataRow datastore.DataRowFields) error {
+func (c *InMemoryDatastoreConnection) Add(tableName string, hashKey datastore.DataRowFields, dataRow datastore.DataRowFields) error {
 	key, err := stringifyHashKey(hashKey)
 	if err != nil {
 		return err
 	}
 
-	table := db[tableName]
-	insertOrder := dbInsertOrder[tableName]
+	table := c.db[tableName]
+	insertOrder := c.dbInsertOrder[tableName]
 	if table == nil || insertOrder == nil {
 		return errors.New("No table exists with given schema name")
 	}
 
 	table[key] = []datastore.DataRowFields{dataRow}
-	dbInsertOrder[tableName] = append(insertOrder, key)
+	c.dbInsertOrder[tableName] = append(insertOrder, key)
+	return nil
+}
+
+func (c *InMemoryDatastoreConnection) Update(tableName string, hashKey datastore.DataRowFields, dataRow datastore.DataRowFields) error {
+	key, err := stringifyHashKey(hashKey)
+	if err != nil {
+		return err
+	}
+
+	table := c.db[tableName]
+	if table == nil {
+		return errors.New("No table exists with given schema name")
+	}
+
+	if _, ok := table[key]; ok {
+		table[key] = []datastore.DataRowFields{dataRow}
+	}
+
+	return nil
+}
+
+func (c *InMemoryDatastoreConnection) Delete(tableName string, hashKey datastore.DataRowFields) error {
+	key, err := stringifyHashKey(hashKey)
+	if err != nil {
+		return err
+	}
+
+	table := c.db[tableName]
+	if table == nil {
+		return errors.New("No table exists with given schema name")
+	}
+
+	if _, ok := table[key]; ok {
+		delete(table, key)
+	}
+
 	return nil
 }
