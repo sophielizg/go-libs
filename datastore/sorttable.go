@@ -19,13 +19,23 @@ func (t *SortTable[V, H, S]) getSchema() *SortTableSchema {
 					Name:                 t.Name,
 					DataRowSchemaFactory: t.DataRowFactory,
 				},
-				HashKeySchemaFactory: t.HashKeyFactory,
+				HashKeySchemaFactory:  t.HashKeyFactory,
+				SupportedFieldOptions: t.getSupportedFieldOptions(),
 			},
 			SortKeySchemaFactory: t.SortKeyFactory,
 		}
 	}
 
 	return t.schema
+}
+
+func (t *SortTable[V, H, S]) getSupportedFieldOptions() SupportedOptions {
+	supported := t.Backend.SupportedFieldOptions()
+	if supported == nil {
+		supported = DefaultSupportedFieldOptions
+	}
+
+	return supported
 }
 
 func (t *SortTable[V, H, S]) ValidateSchema() error {

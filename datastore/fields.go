@@ -3,6 +3,7 @@ package datastore
 import "time"
 
 type FieldType interface {
+	TypeName() string
 	IsNullable() bool
 	IsComparable() bool
 	IsType(x interface{}) bool
@@ -12,6 +13,10 @@ type IntField struct {
 	Nullable bool
 	Unsigned bool
 	Large    bool
+}
+
+func (f *IntField) TypeName() string {
+	return "IntField"
 }
 
 func (f *IntField) IsNullable() bool {
@@ -50,6 +55,10 @@ func (f *IntField) IsType(x interface{}) bool {
 type StringField struct {
 	Nullable bool
 	NumChars int
+}
+
+func (f *StringField) TypeName() string {
+	return "StringField"
 }
 
 func (f *StringField) IsNullable() bool {
@@ -93,6 +102,10 @@ type JsonField struct {
 	Nullable bool
 }
 
+func (f *JsonField) TypeName() string {
+	return "JsonField"
+}
+
 func (f *JsonField) IsNullable() bool {
 	return f.Nullable
 }
@@ -123,6 +136,10 @@ type BoolField struct {
 	Nullable bool
 }
 
+func (f *BoolField) TypeName() string {
+	return "BoolField"
+}
+
 func (f *BoolField) IsNullable() bool {
 	return f.Nullable
 }
@@ -145,6 +162,10 @@ func (f *BoolField) IsType(x interface{}) bool {
 
 type TimeField struct {
 	Nullable bool
+}
+
+func (f *TimeField) TypeName() string {
+	return "TimeField"
 }
 
 func (f *TimeField) IsNullable() bool {
@@ -170,6 +191,10 @@ func (f *TimeField) IsType(x interface{}) bool {
 type FloatField struct {
 	Nullable bool
 	Large    bool
+}
+
+func (f *FloatField) TypeName() string {
+	return "FloatField"
 }
 
 func (f *FloatField) IsNullable() bool {

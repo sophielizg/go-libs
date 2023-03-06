@@ -19,7 +19,8 @@ func (t *HashTable[V, H]) getSchema() *HashTableSchema {
 				Name:                 t.Name,
 				DataRowSchemaFactory: t.DataRowFactory,
 			},
-			HashKeySchemaFactory: t.HashKeyFactory,
+			HashKeySchemaFactory:  t.HashKeyFactory,
+			SupportedFieldOptions: t.getSupportedFieldOptions(),
 		}
 	}
 

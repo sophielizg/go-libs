@@ -57,3 +57,23 @@ func applyKeyOptions(key datastore.DataRowFields, fieldTypes datastore.DataRowFi
 
 	return key, nil
 }
+
+func shouldApplyKeyOptions(key datastore.DataRowFields, fieldTypes datastore.DataRowFieldTypes, optionsForFields datastore.Options) bool {
+	for fieldName := range optionsForFields {
+		if key[fieldName] == nil {
+			return true
+		}
+
+		_, ok := fieldTypes[fieldName].(*datastore.IntField)
+		if ok && key[fieldName] == 0 {
+			return true
+		}
+
+		_, ok = fieldTypes[fieldName].(*datastore.StringField)
+		if ok && key[fieldName] == "" {
+			return true
+		}
+	}
+
+	return false
+}

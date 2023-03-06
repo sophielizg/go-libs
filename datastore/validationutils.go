@@ -1,6 +1,8 @@
 package datastore
 
-import "errors"
+import (
+	"errors"
+)
 
 func validateDataRowFieldName(fieldName string, dataRowFields DataRowFields) error {
 	_, ok := dataRowFields[fieldName]

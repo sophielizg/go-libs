@@ -1,6 +1,8 @@
 package inmemory
 
-import "github.com/sophielizg/go-libs/datastore"
+import (
+	"github.com/sophielizg/go-libs/datastore"
+)
 
 type InMemoryHashTableBackend struct {
 	Conn InMemoryDatastoreConnection
@@ -46,13 +48,24 @@ func (b *InMemoryHashTableBackend) GetMultiple(schema *datastore.HashTableSchema
 func (b *InMemoryHashTableBackend) AddMultiple(schema *datastore.HashTableSchema, hashKeys []datastore.HashKey, data []datastore.DataRow) ([]datastore.DataRowFields, error) {
 	res := make([]datastore.DataRowFields, len(hashKeys))
 	for i, hashKey := range hashKeys {
-		hashKeyFields, err := applyKeyOptions(hashKey.GetFields(), schema.GetFieldTypes(), schema.HashKeySchemaFactory.GetFieldOptions())
-		if err != nil {
-			return nil, err
+		hashKeyFields := hashKey.GetFields()
+		for shouldApplyKeyOptions(hashKeyFields, schema.HashKeySchemaFactory.GetFieldTypes(), schema.HashKeySchemaFactory.GetFieldOptions()) {
+			hashKeyFields, err := applyKeyOptions(hashKeyFields, schema.HashKeySchemaFactory.GetFieldTypes(), schema.HashKeySchemaFactory.GetFieldOptions())
+			if err != nil {
+				return nil, err
+			}
+
+			existingRow, err := b.Conn.Get(schema.Name, hashKeyFields)
+			if err != nil {
+				return nil, err
+			} else if existingRow == nil {
+				break
+			}
 		}
+
 		res[i] = hashKeyFields
 
-		err = b.Conn.Add(schema.Name, hashKeyFields, data[i].GetFields())
+		err := b.Conn.Add(schema.Name, hashKeyFields, data[i].GetFields())
 		if err != nil {
 			return nil, err
 		}

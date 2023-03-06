@@ -13,6 +13,6 @@ var (
 )
 
 var DefaultSupportedFieldOptions = SupportedOptions{
-	&IntField{}:    FieldOptionTypes,
-	&StringField{}: FieldOptionTypes,
+	(&IntField{}).TypeName():    FieldOptionTypes,
+	(&StringField{}).TypeName(): FieldOptionTypes,
 }
