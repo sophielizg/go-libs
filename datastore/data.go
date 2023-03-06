@@ -9,6 +9,11 @@ func convertDataRowFieldsToInterface[T DataRow](dataRowFieldsList []DataRowField
 	dataRowFactory DataRowFactory[T]) ([]T, error) {
 	dataRowResults := make([]T, len(dataRowFieldsList))
 	for i, dataRowFields := range dataRowFieldsList {
+		if dataRowFields == nil {
+			dataRowResults[i] = dataRowFactory.CreateDefault()
+			continue
+		}
+
 		err := validationFunc(dataRowFields)
 		if err != nil {
 			return nil, err

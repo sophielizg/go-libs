@@ -25,7 +25,7 @@ func (d *LogDataRow) GetFields() datastore.DataRowFields {
 type LogDataRowFactory struct{}
 
 func (f *LogDataRowFactory) CreateDefault() *LogDataRow {
-	return &LogDataRow{}
+	return nil
 }
 
 func (f *LogDataRowFactory) CreateFromFields(fields datastore.DataRowFields) (*LogDataRow, error) {

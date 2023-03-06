@@ -25,16 +25,18 @@ func (b *InMemoryHashTableBackend) Scan(schema *datastore.HashTableSchema, batch
 }
 
 func (b *InMemoryHashTableBackend) GetMultiple(schema *datastore.HashTableSchema, hashKeys []datastore.HashKey) ([]datastore.DataRowFields, error) {
-	res := make([]datastore.DataRowFields, 0, len(hashKeys))
-	for _, hashKey := range hashKeys {
+	res := make([]datastore.DataRowFields, len(hashKeys))
+	for i, hashKey := range hashKeys {
 		dataRow, err := b.Conn.Get(schema.Name, hashKey.GetFields())
 		if err != nil {
 			return nil, err
 		}
 
-		if len(dataRow) != 0 {
+		if len(dataRow) == 0 {
+			res[i] = nil
+		} else {
 			// This table is a hash table, so assume that only one row exists per hash key
-			res = append(res, dataRow[0])
+			res[i] = dataRow[0]
 		}
 	}
 

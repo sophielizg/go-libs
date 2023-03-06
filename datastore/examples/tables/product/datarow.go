@@ -22,13 +22,13 @@ func (d *ProductDataRow) GetFields() datastore.DataRowFields {
 	}
 }
 
-type ProductDataRowFactory struct{}
+type productDataRowFactory struct{}
 
-func (f *ProductDataRowFactory) CreateDefault() *ProductDataRow {
-	return &ProductDataRow{}
+func (f *productDataRowFactory) CreateDefault() *ProductDataRow {
+	return nil
 }
 
-func (f *ProductDataRowFactory) CreateFromFields(fields datastore.DataRowFields) (*ProductDataRow, error) {
+func (f *productDataRowFactory) CreateFromFields(fields datastore.DataRowFields) (*ProductDataRow, error) {
 	return &ProductDataRow{
 		Department:  fields["Department"].(string),
 		Price:       fields["Price"].(float32),
@@ -37,7 +37,7 @@ func (f *ProductDataRowFactory) CreateFromFields(fields datastore.DataRowFields)
 	}, nil
 }
 
-func (f *ProductDataRowFactory) GetFieldTypes() datastore.DataRowFieldTypes {
+func (f *productDataRowFactory) GetFieldTypes() datastore.DataRowFieldTypes {
 	return datastore.DataRowFieldTypes{
 		"Department":  &datastore.StringField{NumChars: 64},
 		"Price":       &datastore.FloatField{},

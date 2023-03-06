@@ -16,30 +16,30 @@ func (d *ProductHashKey) GetFields() datastore.DataRowFields {
 	}
 }
 
-type ProductHashKeyFactory struct{}
+type productHashKeyFactory struct{}
 
-func (f *ProductHashKeyFactory) CreateDefault() *ProductHashKey {
+func (f *productHashKeyFactory) CreateDefault() *ProductHashKey {
 	return &ProductHashKey{}
 }
 
-func (f *ProductHashKeyFactory) CreateFromFields(fields datastore.DataRowFields) (*ProductHashKey, error) {
+func (f *productHashKeyFactory) CreateFromFields(fields datastore.DataRowFields) (*ProductHashKey, error) {
 	return &ProductHashKey{
 		Brand: fields["Brand"].(string),
 		Name:  fields["Name"].(string),
 	}, nil
 }
 
-func (f *ProductHashKeyFactory) GetFieldTypes() datastore.DataRowFieldTypes {
+func (f *productHashKeyFactory) GetFieldTypes() datastore.DataRowFieldTypes {
 	return datastore.DataRowFieldTypes{
 		"Brand": &datastore.StringField{NumChars: 64},
 		"Name":  &datastore.StringField{NumChars: 256},
 	}
 }
 
-func (f *ProductHashKeyFactory) GetFieldOptions() datastore.Options {
+func (f *productHashKeyFactory) GetFieldOptions() datastore.Options {
 	return datastore.Options{}
 }
 
-func (f *ProductHashKeyFactory) GetSortOrder() []string {
+func (f *productHashKeyFactory) GetSortOrder() []string {
 	return []string{"Brand", "Name"}
 }
