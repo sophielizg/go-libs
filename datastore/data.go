@@ -34,7 +34,7 @@ type DataRow interface {
 	GetFields() DataRowFields
 }
 
-type DataRowScanFields struct {
+type AppendTableScanFields struct {
 	DataRow DataRowFields
 }
 
@@ -56,7 +56,7 @@ type HashKey interface {
 }
 
 type HashTableScanFields struct {
-	DataRowScanFields
+	AppendTableScanFields
 	HashKey DataRowFields
 }
 

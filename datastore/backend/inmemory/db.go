@@ -57,7 +57,7 @@ func (c *InMemoryDatastoreConnection) Scan(tableName string, batchSize int) (cha
 
 			for _, dataRowFields := range table[key] {
 				outChan <- &datastore.HashTableScanFields{
-					DataRowScanFields: datastore.DataRowScanFields{
+					AppendTableScanFields: datastore.AppendTableScanFields{
 						DataRow: dataRowFields,
 					},
 					HashKey: hashKey,

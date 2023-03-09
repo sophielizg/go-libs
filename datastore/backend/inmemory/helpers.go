@@ -22,8 +22,8 @@ func generateIntKey() int {
 	return rand.Int()
 }
 
-func stringifyHashKey(hashKey datastore.DataRowFields) (string, error) {
-	bytes, err := json.Marshal(hashKey)
+func stringifyHashKey(hashKey datastore.HashKey) (string, error) {
+	bytes, err := json.Marshal(hashKey.GetFields())
 	if err != nil {
 		return "", err
 	}

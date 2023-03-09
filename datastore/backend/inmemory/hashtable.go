@@ -1,11 +1,15 @@
 package inmemory
 
 import (
+	"errors"
+
 	"github.com/sophielizg/go-libs/datastore"
 )
 
+type HashTable = map[string]datastore.DataRowFields
+
 type InMemoryHashTableBackend struct {
-	Conn InMemoryDatastoreConnection
+	table map[string]HashTable
 }
 
 func (b *InMemoryHashTableBackend) SupportedFieldOptions() datastore.SupportedOptions {
@@ -19,27 +23,72 @@ func (b *InMemoryHashTableBackend) ValidateSchema(schema *datastore.HashTableSch
 }
 
 func (b *InMemoryHashTableBackend) CreateOrUpdateSchema(schema *datastore.HashTableSchema) error {
-	return b.Conn.CreateOrUpdateSchema(schema.Name)
+	if b.table == nil {
+		b.table = map[string]HashTable{}
+	}
+
+	if b.table[schema.Name] == nil {
+		b.table[schema.Name] = make(HashTable, 0)
+	}
+
+	return nil
+}
+
+func (b *InMemoryHashTableBackend) getTable(schema *datastore.HashTableSchema) (HashTable, error) {
+	if b.table[schema.Name] == nil {
+		return nil, errors.New("No table exists with given schema name")
+	}
+	return b.table[schema.Name], nil
 }
 
 func (b *InMemoryHashTableBackend) Scan(schema *datastore.HashTableSchema, batchSize int) (chan *datastore.HashTableScanFields, chan error) {
-	return b.Conn.Scan(schema.Name, batchSize)
+	outChan := make(chan *datastore.HashTableScanFields, batchSize)
+	errorChan := make(chan error, 1)
+
+	go func() {
+		defer close(outChan)
+		defer close(errorChan)
+
+		table, err := b.getTable(schema)
+		if err != nil {
+			errorChan <- err
+			return
+		}
+
+		for key, row := range table {
+			hashKey, err := unstringifyHashKey(key)
+			if err != nil {
+				errorChan <- err
+				continue
+			}
+
+			outChan <- &datastore.HashTableScanFields{
+				AppendTableScanFields: datastore.AppendTableScanFields{
+					DataRow: row,
+				},
+				HashKey: hashKey,
+			}
+		}
+	}()
+
+	return outChan, errorChan
 }
 
 func (b *InMemoryHashTableBackend) GetMultiple(schema *datastore.HashTableSchema, hashKeys []datastore.HashKey) ([]datastore.DataRowFields, error) {
 	res := make([]datastore.DataRowFields, len(hashKeys))
+
+	table, err := b.getTable(schema)
+	if err != nil {
+		return nil, err
+	}
+
 	for i, hashKey := range hashKeys {
-		dataRow, err := b.Conn.Get(schema.Name, hashKey.GetFields())
+		key, err := stringifyHashKey(hashKey)
 		if err != nil {
 			return nil, err
 		}
 
-		if len(dataRow) == 0 {
-			res[i] = nil
-		} else {
-			// This table is a hash table, so assume that only one row exists per hash key
-			res[i] = dataRow[0]
-		}
+		res[i] = table[key]
 	}
 
 	return res, nil
@@ -47,28 +96,32 @@ func (b *InMemoryHashTableBackend) GetMultiple(schema *datastore.HashTableSchema
 
 func (b *InMemoryHashTableBackend) AddMultiple(schema *datastore.HashTableSchema, hashKeys []datastore.HashKey, data []datastore.DataRow) ([]datastore.DataRowFields, error) {
 	res := make([]datastore.DataRowFields, len(hashKeys))
+
+	table, err := b.getTable(schema)
+	if err != nil {
+		return nil, err
+	}
+
 	for i, hashKey := range hashKeys {
 		hashKeyFields := hashKey.GetFields()
+		var key string
+
 		for shouldApplyKeyOptions(hashKeyFields, schema.HashKeySchemaFactory.GetFieldTypes(), schema.HashKeySchemaFactory.GetFieldOptions()) {
-			hashKeyFields, err := applyKeyOptions(hashKeyFields, schema.HashKeySchemaFactory.GetFieldTypes(), schema.HashKeySchemaFactory.GetFieldOptions())
+			hashKeyFields, err = applyKeyOptions(hashKeyFields, schema.HashKeySchemaFactory.GetFieldTypes(), schema.HashKeySchemaFactory.GetFieldOptions())
 			if err != nil {
 				return nil, err
 			}
 
-			existingRow, err := b.Conn.Get(schema.Name, hashKeyFields)
+			key, err = stringifyHashKey(hashKey)
 			if err != nil {
 				return nil, err
-			} else if existingRow == nil {
+			} else if table[key] == nil {
 				break
 			}
 		}
 
 		res[i] = hashKeyFields
-
-		err := b.Conn.Add(schema.Name, hashKeyFields, data[i].GetFields())
-		if err != nil {
-			return nil, err
-		}
+		table[key] = data[i].GetFields()
 	}
 
 	return res, nil

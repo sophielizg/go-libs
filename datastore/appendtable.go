@@ -34,7 +34,7 @@ func (t *AppendTable[V]) Scan(batchSize int) (chan DataRowScan[V], chan error) {
 		batchSize,
 		scanDataRowChan,
 		scanErrorChan,
-		func(scanDataRow *DataRowScanFields) (DataRowScan[V], error) {
+		func(scanDataRow *AppendTableScanFields) (DataRowScan[V], error) {
 			var err error
 			res := DataRowScan[V]{}
 			res.DataRow, err = t.DataRowFactory.CreateFromFields(scanDataRow.DataRow)

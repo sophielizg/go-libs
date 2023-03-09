@@ -6,7 +6,7 @@ type AppendTableBackend interface {
 	CreateOrUpdateSchema(schema *AppendTableSchema) error
 
 	// Data operations
-	Scan(schema *AppendTableSchema, batchSize int) (chan *DataRowScanFields, chan error)
+	Scan(schema *AppendTableSchema, batchSize int) (chan *AppendTableScanFields, chan error)
 	AppendMultiple(schema *AppendTableSchema, data []DataRow) error
 }
 
