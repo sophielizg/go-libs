@@ -11,7 +11,7 @@ import (
 )
 
 type logTableWriter struct {
-	logTable logtable.LogTable
+	logTable *logtable.LogTable
 }
 
 func (w *logTableWriter) Write(bytes []byte) (int, error) {
