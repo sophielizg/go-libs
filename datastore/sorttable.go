@@ -283,3 +283,50 @@ func (t *SortTable[V, H, S]) DeleteWithSortKey(hashKey H, sortKey S) error {
 
 	return t.Backend.DeleteWithSortKey(t.getSchema(), hashKey, sortKey)
 }
+
+func (t *SortTable[V, H, S]) TransferTo(newTable *SortTable[V, H, S], batchSize int) error {
+	dataChan, errorChan := t.Scan(batchSize)
+
+	for {
+		dataBuf := make([]V, 0, batchSize)
+		hashKeyBuf := make([]H, 0, batchSize)
+		sortKeyBuf := make([]S, 0, batchSize)
+
+	makeBuf:
+		for {
+			select {
+			case err, more := <-errorChan:
+				if !more {
+					errorChan = nil
+					break makeBuf
+				}
+
+				return err
+			case data, more := <-dataChan:
+				if !more {
+					dataChan = nil
+					break makeBuf
+				}
+
+				dataBuf = append(dataBuf, data.DataRow)
+				hashKeyBuf = append(hashKeyBuf, data.HashKey)
+				sortKeyBuf = append(sortKeyBuf, data.SortKey)
+			}
+
+			if len(dataBuf) == batchSize {
+				break
+			}
+		}
+
+		if len(dataBuf) > 0 {
+			_, _, err := newTable.AddMultiple(hashKeyBuf, sortKeyBuf, dataBuf)
+			if err != nil {
+				return err
+			}
+		}
+
+		if dataChan == nil && errorChan == nil {
+			return nil
+		}
+	}
+}

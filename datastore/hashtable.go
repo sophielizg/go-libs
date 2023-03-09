@@ -145,3 +145,48 @@ func (t *HashTable[V, H]) Delete(hashKeys ...H) error {
 	genericKeys := convertHashKeyToInterface(hashKeys...)
 	return t.Backend.DeleteMultiple(t.getSchema(), genericKeys)
 }
+
+func (t *HashTable[V, H]) TransferTo(newTable *HashTable[V, H], batchSize int) error {
+	dataChan, errorChan := t.Scan(batchSize)
+
+	for {
+		dataBuf := make([]V, 0, batchSize)
+		hashKeyBuf := make([]H, 0, batchSize)
+
+	makeBuf:
+		for {
+			select {
+			case err, more := <-errorChan:
+				if !more {
+					errorChan = nil
+					break makeBuf
+				}
+
+				return err
+			case data, more := <-dataChan:
+				if !more {
+					dataChan = nil
+					break makeBuf
+				}
+
+				dataBuf = append(dataBuf, data.DataRow)
+				hashKeyBuf = append(hashKeyBuf, data.HashKey)
+			}
+
+			if len(dataBuf) == batchSize {
+				break
+			}
+		}
+
+		if len(dataBuf) > 0 {
+			_, err := newTable.AddMultiple(hashKeyBuf, dataBuf)
+			if err != nil {
+				return err
+			}
+		}
+
+		if dataChan == nil && errorChan == nil {
+			return nil
+		}
+	}
+}

@@ -47,3 +47,46 @@ func (t *AppendTable[V]) Append(data ...V) error {
 	genericData := convertDataRowToInterface(data...)
 	return t.Backend.AppendMultiple(t.getSchema(), genericData)
 }
+
+func (t *AppendTable[V]) TransferTo(newTable *AppendTable[V], batchSize int) error {
+	dataChan, errorChan := t.Scan(batchSize)
+
+	for {
+		buf := make([]V, 0, batchSize)
+
+	makeBuf:
+		for {
+			select {
+			case err, more := <-errorChan:
+				if !more {
+					errorChan = nil
+					break makeBuf
+				}
+
+				return err
+			case data, more := <-dataChan:
+				if !more {
+					dataChan = nil
+					break makeBuf
+				}
+
+				buf = append(buf, data.DataRow)
+			}
+
+			if len(buf) == batchSize {
+				break
+			}
+		}
+
+		if len(buf) > 0 {
+			err := newTable.Append(buf...)
+			if err != nil {
+				return err
+			}
+		}
+
+		if dataChan == nil && errorChan == nil {
+			return nil
+		}
+	}
+}
