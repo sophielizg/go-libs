@@ -6,8 +6,8 @@ const (
 
 var (
 	DefaultSupportedFieldOptions = SupportedOptions{
-		(&IntField{}).TypeName():    OptionTypes{AutoGenerateFieldOption: true},
-		(&StringField{}).TypeName(): OptionTypes{AutoGenerateFieldOption: true},
+		intFieldId:    OptionTypes{AutoGenerateFieldOption: true},
+		stringFieldId: OptionTypes{AutoGenerateFieldOption: true},
 	}
 )
 

@@ -2,8 +2,17 @@ package datastore
 
 import "time"
 
+const (
+	intFieldId Option = iota
+	stringFieldId
+	jsonFieldId
+	boolFieldId
+	timeFieldId
+	floatFieldId
+)
+
 type FieldType interface {
-	TypeName() string
+	TypeId() Option
 	IsNullable() bool
 	IsComparable() bool
 	IsType(x interface{}) bool
@@ -15,8 +24,8 @@ type IntField struct {
 	Large    bool
 }
 
-func (f *IntField) TypeName() string {
-	return "IntField"
+func (f *IntField) TypeId() Option {
+	return intFieldId
 }
 
 func (f *IntField) IsNullable() bool {
@@ -57,8 +66,8 @@ type StringField struct {
 	NumChars int
 }
 
-func (f *StringField) TypeName() string {
-	return "StringField"
+func (f *StringField) TypeId() Option {
+	return stringFieldId
 }
 
 func (f *StringField) IsNullable() bool {
@@ -102,8 +111,8 @@ type JsonField struct {
 	Nullable bool
 }
 
-func (f *JsonField) TypeName() string {
-	return "JsonField"
+func (f *JsonField) TypeId() Option {
+	return jsonFieldId
 }
 
 func (f *JsonField) IsNullable() bool {
@@ -136,8 +145,8 @@ type BoolField struct {
 	Nullable bool
 }
 
-func (f *BoolField) TypeName() string {
-	return "BoolField"
+func (f *BoolField) TypeId() Option {
+	return boolFieldId
 }
 
 func (f *BoolField) IsNullable() bool {
@@ -164,8 +173,8 @@ type TimeField struct {
 	Nullable bool
 }
 
-func (f *TimeField) TypeName() string {
-	return "TimeField"
+func (f *TimeField) TypeId() Option {
+	return timeFieldId
 }
 
 func (f *TimeField) IsNullable() bool {
@@ -193,8 +202,8 @@ type FloatField struct {
 	Large    bool
 }
 
-func (f *FloatField) TypeName() string {
-	return "FloatField"
+func (f *FloatField) TypeId() Option {
+	return floatFieldId
 }
 
 func (f *FloatField) IsNullable() bool {
