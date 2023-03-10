@@ -1,22 +1,16 @@
 package datastore
 
 const (
-	autoGenerateOption Option = iota
+	AutoGenerateFieldOption Option = iota
 )
 
 var (
-	FieldOptions = struct {
-		AutoGenerateOption Option
-	}{
-		autoGenerateOption,
-	}
-
 	DefaultSupportedFieldOptions = SupportedOptions{
-		(&IntField{}).TypeName():    OptionTypes{autoGenerateOption: true},
-		(&StringField{}).TypeName(): OptionTypes{autoGenerateOption: true},
+		(&IntField{}).TypeName():    OptionTypes{AutoGenerateFieldOption: true},
+		(&StringField{}).TypeName(): OptionTypes{AutoGenerateFieldOption: true},
 	}
 )
 
-func isOption(x Option) bool {
-	return autoGenerateOption == x
+func isFieldOption(x Option) bool {
+	return AutoGenerateFieldOption == x
 }

@@ -22,8 +22,30 @@ func generateIntKey() int {
 	return rand.Int()
 }
 
-func stringifyHashKey(hashKey datastore.HashKey) (string, error) {
-	bytes, err := json.Marshal(hashKey.GetFields())
+func generateUniqueKey[K datastore.DataRow, V any](table map[string]V, key K, keySchemaFactory datastore.KeySchemaFactory) (datastore.DataRowFields, error) {
+	keyFields := key.GetFields()
+	fieldTypes := keySchemaFactory.GetFieldTypes()
+	fieldOptions := keySchemaFactory.GetFieldOptions()
+
+	for shouldApplyKeyOptions(keyFields, fieldTypes, fieldOptions) {
+		keyFields, err := applyKeyOptions(keyFields, fieldTypes, fieldOptions)
+		if err != nil {
+			return nil, err
+		}
+
+		keyString, err := stringifyKey(keyFields)
+		if err != nil {
+			return nil, err
+		} else if _, ok := table[keyString]; !ok {
+			break
+		}
+	}
+
+	return keyFields, nil
+}
+
+func stringifyKey(key datastore.DataRowFields) (string, error) {
+	bytes, err := json.Marshal(key)
 	if err != nil {
 		return "", err
 	}
@@ -31,21 +53,21 @@ func stringifyHashKey(hashKey datastore.HashKey) (string, error) {
 	return string(bytes), nil
 }
 
-func unstringifyHashKey(stringified string) (datastore.DataRowFields, error) {
+func unstringifyKey(stringified string) (datastore.DataRowFields, error) {
 	bytes := []byte(stringified)
-	hashKey := datastore.DataRowFields{}
-	err := json.Unmarshal(bytes, &hashKey)
+	key := datastore.DataRowFields{}
+	err := json.Unmarshal(bytes, &key)
 	if err != nil {
 		return nil, err
 	}
 
-	return hashKey, nil
+	return key, nil
 }
 
 func applyKeyOptions(key datastore.DataRowFields, fieldTypes datastore.DataRowFieldTypes, optionsForFields datastore.Options) (datastore.DataRowFields, error) {
 	for fieldName, options := range optionsForFields {
 		for _, option := range options {
-			if option == datastore.FieldOptions.AutoGenerateOption {
+			if option == datastore.AutoGenerateFieldOption {
 				if _, ok := fieldTypes[fieldName].(*datastore.IntField); ok {
 					key[fieldName] = generateIntKey()
 				} else if stringType, ok := fieldTypes[fieldName].(*datastore.StringField); ok {

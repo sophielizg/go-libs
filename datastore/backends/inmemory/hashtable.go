@@ -56,7 +56,7 @@ func (b *InMemoryHashTableBackend) Scan(schema *datastore.HashTableSchema, batch
 		}
 
 		for key, row := range table {
-			hashKey, err := unstringifyHashKey(key)
+			hashKey, err := unstringifyKey(key)
 			if err != nil {
 				errorChan <- err
 				continue
@@ -83,7 +83,7 @@ func (b *InMemoryHashTableBackend) GetMultiple(schema *datastore.HashTableSchema
 	}
 
 	for i, hashKey := range hashKeys {
-		key, err := stringifyHashKey(hashKey)
+		key, err := stringifyKey(hashKey.GetFields())
 		if err != nil {
 			return nil, err
 		}
@@ -103,21 +103,14 @@ func (b *InMemoryHashTableBackend) AddMultiple(schema *datastore.HashTableSchema
 	}
 
 	for i, hashKey := range hashKeys {
-		hashKeyFields := hashKey.GetFields()
-		var key string
+		hashKeyFields, err := generateUniqueKey(table, hashKey, schema.HashKeySchemaFactory)
+		if err != nil {
+			return nil, err
+		}
 
-		for shouldApplyKeyOptions(hashKeyFields, schema.HashKeySchemaFactory.GetFieldTypes(), schema.HashKeySchemaFactory.GetFieldOptions()) {
-			hashKeyFields, err = applyKeyOptions(hashKeyFields, schema.HashKeySchemaFactory.GetFieldTypes(), schema.HashKeySchemaFactory.GetFieldOptions())
-			if err != nil {
-				return nil, err
-			}
-
-			key, err = stringifyHashKey(hashKey)
-			if err != nil {
-				return nil, err
-			} else if table[key] == nil {
-				break
-			}
+		key, err := stringifyKey(hashKeyFields)
+		if err != nil {
+			return nil, err
 		}
 
 		res[i] = hashKeyFields
@@ -128,22 +121,36 @@ func (b *InMemoryHashTableBackend) AddMultiple(schema *datastore.HashTableSchema
 }
 
 func (b *InMemoryHashTableBackend) UpdateMultiple(schema *datastore.HashTableSchema, hashKeys []datastore.HashKey, data []datastore.DataRow) error {
+	table, err := b.getTable(schema)
+	if err != nil {
+		return err
+	}
+
 	for i, hashKey := range hashKeys {
-		err := b.Conn.Update(schema.Name, hashKey.GetFields(), data[i].GetFields())
+		key, err := stringifyKey(hashKey.GetFields())
 		if err != nil {
 			return err
 		}
+
+		table[key] = data[i].GetFields()
 	}
 
 	return nil
 }
 
 func (b *InMemoryHashTableBackend) DeleteMultiple(schema *datastore.HashTableSchema, hashKeys []datastore.HashKey) error {
+	table, err := b.getTable(schema)
+	if err != nil {
+		return err
+	}
+
 	for _, hashKey := range hashKeys {
-		err := b.Conn.Delete(schema.Name, hashKey.GetFields())
+		key, err := stringifyKey(hashKey.GetFields())
 		if err != nil {
 			return err
 		}
+
+		delete(table, key)
 	}
 
 	return nil

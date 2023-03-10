@@ -1,21 +1,11 @@
 package datastore
 
 const (
-	equalComparator Option = iota
-	lessThanComparator
-	greaterThanComparator
+	EqualComparator Option = iota
+	LessThanComparator
+	GreaterThanComparator
 )
 
-var Comparators = struct {
-	Equal       Option
-	LessThan    Option
-	GreaterThan Option
-}{
-	equalComparator,
-	lessThanComparator,
-	greaterThanComparator,
-}
-
 func isComparator(x Option) bool {
-	return equalComparator <= x && greaterThanComparator >= x
+	return EqualComparator <= x && GreaterThanComparator >= x
 }
