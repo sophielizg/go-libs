@@ -1,5 +1,6 @@
 package datastore
 
+// A table to which data can be appended
 type AppendTable[V DataRow] struct {
 	Backend        AppendTableBackend
 	DataRowFactory DataRowFactory[V]
@@ -20,14 +21,17 @@ func (t *AppendTable[V]) getSchema() *AppendTableSchema {
 	return t.schema
 }
 
+// Validates the schema of the table
 func (t *AppendTable[V]) ValidateSchema() error {
 	return t.Backend.ValidateSchema(t.getSchema())
 }
 
+// Creates or updates the schema of the table
 func (t *AppendTable[V]) CreateOrUpdateSchema() error {
 	return t.Backend.CreateOrUpdateSchema(t.getSchema())
 }
 
+// Scans the entire table, holding batchSize data rows in memory at a time
 func (t *AppendTable[V]) Scan(batchSize int) (chan DataRowScan[V], chan error) {
 	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema(), batchSize)
 	return scan(
@@ -35,19 +39,35 @@ func (t *AppendTable[V]) Scan(batchSize int) (chan DataRowScan[V], chan error) {
 		scanDataRowChan,
 		scanErrorChan,
 		func(scanDataRow *AppendTableScanFields) (DataRowScan[V], error) {
-			var err error
 			res := DataRowScan[V]{}
-			res.DataRow, err = t.DataRowFactory.CreateFromFields(scanDataRow.DataRow)
+			rows, err := convertDataRowFieldsToInterface(
+				[]DataRowFields{scanDataRow.DataRow},
+				t.getSchema().validateDataRowFields,
+				t.DataRowFactory,
+			)
+
+			if err != nil {
+				return res, err
+			}
+
+			res.DataRow = rows[0]
 			return res, err
 		},
 	)
 }
 
+// Appends data to the table
 func (t *AppendTable[V]) Append(data ...V) error {
 	genericData := convertDataRowToInterface(data...)
 	return t.Backend.AppendMultiple(t.getSchema(), genericData)
 }
 
+// Deletes all the data from the table, holding batchSize data rows in memory at a time
+func (t *AppendTable[V]) DeleteAll(batchSize int) error {
+	return t.Backend.DeleteAll(t.getSchema(), batchSize)
+}
+
+// Transfers data from the current table to another table of the same type
 func (t *AppendTable[V]) TransferTo(newTable *AppendTable[V], batchSize int) error {
 	dataChan, errorChan := t.Scan(batchSize)
 
@@ -89,8 +109,4 @@ func (t *AppendTable[V]) TransferTo(newTable *AppendTable[V], batchSize int) err
 			return nil
 		}
 	}
-}
-
-func (t *AppendTable[V]) DeleteAll(batchSize int) error {
-	return t.Backend.DeleteAll(t.getSchema(), batchSize)
 }

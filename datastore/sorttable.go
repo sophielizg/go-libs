@@ -2,6 +2,7 @@ package datastore
 
 import "errors"
 
+// A key-value table that supports a partition key to sort values
 type SortTable[V DataRow, H HashKey, S SortKey] struct {
 	Backend        SortTableBackend
 	DataRowFactory DataRowFactory[V]
@@ -38,6 +39,7 @@ func (t *SortTable[V, H, S]) getSupportedFieldOptions() SupportedOptions {
 	return supported
 }
 
+// Validates the schema of the sort table
 func (t *SortTable[V, H, S]) ValidateSchema() error {
 	err := t.getSchema().Validate()
 	if err != nil {
@@ -64,6 +66,7 @@ func (t *SortTable[V, H, S]) ValidateSchema() error {
 	return t.Backend.ValidateSchema(t.getSchema())
 }
 
+// Validates the properties of a sort key against the table schema
 func (t *SortTable[V, H, S]) ValidateSortKey(sortKey S) error {
 	foundEmpty := false
 	fieldComparators := sortKey.GetComparators()
@@ -88,6 +91,7 @@ func (t *SortTable[V, H, S]) ValidateSortKey(sortKey S) error {
 	return nil
 }
 
+// Scans the entire sort table, holding batchSize data rows in memory at a time
 func (t *SortTable[V, H, S]) Scan(batchSize int) (chan SortTableScan[V, H, S], chan error) {
 	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema(), batchSize)
 	return scan(
@@ -113,6 +117,7 @@ func (t *SortTable[V, H, S]) Scan(batchSize int) (chan SortTableScan[V, H, S], c
 	)
 }
 
+// Retrieves the values with the specified hash and sort key
 func (t *SortTable[V, H, S]) Get(hashKey H, sortKey S) (V, error) {
 	vals, err := t.GetMultiple([]H{hashKey}, []S{sortKey})
 	if err != nil {
@@ -126,6 +131,7 @@ func (t *SortTable[V, H, S]) Get(hashKey H, sortKey S) (V, error) {
 	}
 }
 
+// Retrieves the values with the specified hash and sort keys
 func (t *SortTable[V, H, S]) GetMultiple(hashKeys []H, sortKeys []S) ([]V, error) {
 	if len(hashKeys) != len(sortKeys) {
 		return nil, errors.New("The number of HashKeys and SortKeys must match")
@@ -148,6 +154,7 @@ func (t *SortTable[V, H, S]) GetMultiple(hashKeys []H, sortKeys []S) ([]V, error
 	)
 }
 
+// Adds a value with the specified hash and sort key
 func (t *SortTable[V, H, S]) Add(hashKey H, sortKey S, data V) (H, S, error) {
 	hashKeys, sortKeys, err := t.AddMultiple([]H{hashKey}, []S{sortKey}, []V{data})
 	if err != nil {
@@ -161,6 +168,7 @@ func (t *SortTable[V, H, S]) Add(hashKey H, sortKey S, data V) (H, S, error) {
 	}
 }
 
+// Adds multiple values with the specified hash and sort keys
 func (t *SortTable[V, H, S]) AddMultiple(hashKeys []H, sortKeys []S, data []V) ([]H, []S, error) {
 	if len(hashKeys) != len(sortKeys) || len(hashKeys) != len(data) {
 		return nil, nil, errors.New("The numbers of HashKeys, SortKeys, and DataRows must match")
@@ -196,10 +204,12 @@ func (t *SortTable[V, H, S]) AddMultiple(hashKeys []H, sortKeys []S, data []V) (
 	return hashKeyResults, sortKeyResults, err
 }
 
+// Updates a value with the specified hash and sort key
 func (t *SortTable[V, H, S]) Update(hashKey H, sortKey S, data V) error {
 	return t.UpdateMultiple([]H{hashKey}, []S{sortKey}, []V{data})
 }
 
+// Updates multiple values with the specified hash and sort keys
 func (t *SortTable[V, H, S]) UpdateMultiple(hashKeys []H, sortKeys []S, data []V) error {
 	if len(hashKeys) != len(data) {
 		return errors.New("The number of HashKeys must match the number of data values")
@@ -212,10 +222,12 @@ func (t *SortTable[V, H, S]) UpdateMultiple(hashKeys []H, sortKeys []S, data []V
 	return t.Backend.UpdateMultiple(t.getSchema(), genericHashKeys, genericSortKeys, genericData)
 }
 
+// Deletes value with the specified hash and sort key
 func (t *SortTable[V, H, S]) Delete(hashKey H, sortKey S) error {
 	return t.DeleteMultiple([]H{hashKey}, []S{sortKey})
 }
 
+// Deletes multiple value with the specified hash and sort keys
 func (t *SortTable[V, H, S]) DeleteMultiple(hashKeys []H, sortKeys []S) error {
 	if len(hashKeys) != len(sortKeys) {
 		return errors.New("The number of HashKeys and SortKeys must match")
@@ -226,6 +238,7 @@ func (t *SortTable[V, H, S]) DeleteMultiple(hashKeys []H, sortKeys []S) error {
 	return t.Backend.DeleteMultiple(t.getSchema(), genericHashKeys, genericSortKeys)
 }
 
+// Retrieves multiple values by the specified hash key, filtering by the sort key and its comparators
 func (t *SortTable[V, H, S]) GetWithSortKey(hashKey H, sortKey S) ([]V, []H, error) {
 	err := t.ValidateSortKey(sortKey)
 	if err != nil {
@@ -266,6 +279,7 @@ func (t *SortTable[V, H, S]) GetWithSortKey(hashKey H, sortKey S) ([]V, []H, err
 	return dataRowResults, hashKeyResults, nil
 }
 
+// Updates multiple values by the specified hash key, filtering by the sort key and its comparators
 func (t *SortTable[V, H, S]) UpdateWithSortKey(hashKey H, sortKey S, data V) error {
 	err := t.ValidateSortKey(sortKey)
 	if err != nil {
@@ -275,6 +289,7 @@ func (t *SortTable[V, H, S]) UpdateWithSortKey(hashKey H, sortKey S, data V) err
 	return t.Backend.UpdateWithSortKey(t.getSchema(), hashKey, sortKey, data)
 }
 
+// Deletes multiple values by the specified hash key, filtering by the sort key and its comparators
 func (t *SortTable[V, H, S]) DeleteWithSortKey(hashKey H, sortKey S) error {
 	err := t.ValidateSortKey(sortKey)
 	if err != nil {
@@ -284,6 +299,7 @@ func (t *SortTable[V, H, S]) DeleteWithSortKey(hashKey H, sortKey S) error {
 	return t.Backend.DeleteWithSortKey(t.getSchema(), hashKey, sortKey)
 }
 
+// Transfers the data from this sort table to another sort table of the same type
 func (t *SortTable[V, H, S]) TransferTo(newTable *SortTable[V, H, S], batchSize int) error {
 	dataChan, errorChan := t.Scan(batchSize)
 
