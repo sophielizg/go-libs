@@ -90,3 +90,7 @@ func (t *AppendTable[V]) TransferTo(newTable *AppendTable[V], batchSize int) err
 		}
 	}
 }
+
+func (t *AppendTable[V]) DeleteAll(batchSize int) error {
+	return t.Backend.DeleteAll(t.getSchema(), batchSize)
+}

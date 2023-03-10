@@ -8,6 +8,7 @@ type AppendTableBackend interface {
 	// Data operations
 	Scan(schema *AppendTableSchema, batchSize int) (chan *AppendTableScanFields, chan error)
 	AppendMultiple(schema *AppendTableSchema, data []DataRow) error
+	DeleteAll(schema *AppendTableSchema, batchSize int) error
 }
 
 type HashTableBackend interface {

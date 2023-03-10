@@ -74,3 +74,8 @@ func (b *InMemoryAppendTableBackend) AppendMultiple(schema *datastore.AppendTabl
 	b.table[schema.Name] = append(table, dataRowFields...)
 	return nil
 }
+
+func (b *InMemoryAppendTableBackend) DeleteAll(schema *datastore.AppendTableSchema, batchSize int) error {
+	b.table[schema.Name] = make([]datastore.DataRowFields, 0)
+	return nil
+}
