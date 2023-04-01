@@ -1,11 +1,13 @@
 package datastore
 
-import "github.com/sophielizg/go-libs/datastore/fields"
+import (
+	"github.com/sophielizg/go-libs/datastore/mutator"
+)
 
 type ScanFields struct {
-	DataRow fields.MappedFieldValues
-	HashKey fields.MappedFieldValues
-	SortKey fields.MappedFieldValues
+	DataRow mutator.MappedFieldValues
+	HashKey mutator.MappedFieldValues
+	SortKey mutator.MappedFieldValues
 }
 
 func scan[O any](inChan chan *ScanFields, inErrorChan chan error, convertFieldsToOutput func(*ScanFields) (O, error)) (chan O, chan error) {

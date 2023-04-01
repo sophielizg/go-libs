@@ -1,5 +1,7 @@
 package fields
 
+import "github.com/sophielizg/go-libs/datastore/mutator"
+
 type Setting = int8
 
 const (
@@ -7,7 +9,7 @@ const (
 )
 
 type DataRowSettings struct {
-	EmptyValues   MappedFieldValues
+	EmptyValues   mutator.MappedFieldValues
 	FieldSettings FieldSettings
 	FieldOrder    OrderedFieldKeys
 }

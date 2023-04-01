@@ -2,10 +2,10 @@ package inmemory
 
 import (
 	"github.com/sophielizg/go-libs/datastore"
-	"github.com/sophielizg/go-libs/datastore/fields"
+	"github.com/sophielizg/go-libs/datastore/mutator"
 )
 
-type AppendTable = []fields.MappedFieldValues
+type AppendTable = []mutator.MappedFieldValues
 
 type Connection struct {
 	table map[string]*AppendTable
@@ -65,7 +65,7 @@ func (b *AppendTableBackend) Scan(batchSize int) (chan *datastore.ScanFields, ch
 	return outChan, errorChan
 }
 
-func (b *AppendTableBackend) AddMultiple(data []fields.MappedFieldValues) error {
+func (b *AppendTableBackend) AddMultiple(data []mutator.MappedFieldValues) error {
 	table := b.conn.GetTable(b.settings)
 	*table = append(*table, data...)
 	return nil

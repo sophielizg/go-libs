@@ -1,10 +1,12 @@
 package datastore
 
-import "github.com/sophielizg/go-libs/datastore/fields"
+import (
+	"github.com/sophielizg/go-libs/datastore/mutator"
+)
 
 type DataRow[V any] interface {
 	*V
-	Builder() *fields.DataRowBuilder
+	Mutator() *mutator.FieldMutator
 }
 
 type HashKey[H any] interface {
@@ -13,7 +15,10 @@ type HashKey[H any] interface {
 
 type SortKey[S any] interface {
 	HashKey[S]
-	// GetComparators() Options
+}
+
+type SortKeyComparator interface {
+	Mutator() *mutator.FieldMutator
 }
 
 type DataRowFactory[V any, PV DataRow[V]] struct{}
@@ -22,17 +27,17 @@ func (f DataRowFactory[V, PV]) Create() PV {
 	return PV(new(V))
 }
 
-func (f DataRowFactory[V, PV]) CreateFromFields(fields fields.MappedFieldValues) (PV, error) {
+func (f DataRowFactory[V, PV]) CreateFromFields(fields mutator.MappedFieldValues) (PV, error) {
 	dataRow := f.Create()
-	err := dataRow.Builder().SetFields(fields)
+	err := dataRow.Mutator().SetFields(fields)
 	return dataRow, err
 }
 
-func (f DataRowFactory[V, PV]) CreateFieldValues(dataRow PV) fields.MappedFieldValues {
-	return dataRow.Builder().GetFields()
+func (f DataRowFactory[V, PV]) CreateFieldValues(dataRow PV) mutator.MappedFieldValues {
+	return dataRow.Mutator().GetFields()
 }
 
-func (f DataRowFactory[V, PV]) CreateFromFieldsList(fieldsList []fields.MappedFieldValues) ([]PV, error) {
+func (f DataRowFactory[V, PV]) CreateFromFieldsList(fieldsList []mutator.MappedFieldValues) ([]PV, error) {
 	dataRows := make([]PV, len(fieldsList))
 
 	for i, fields := range fieldsList {
@@ -46,8 +51,8 @@ func (f DataRowFactory[V, PV]) CreateFromFieldsList(fieldsList []fields.MappedFi
 	return dataRows, nil
 }
 
-func (f DataRowFactory[V, PV]) CreateFieldValuesList(dataRows []PV) []fields.MappedFieldValues {
-	fieldsList := make([]fields.MappedFieldValues, len(dataRows))
+func (f DataRowFactory[V, PV]) CreateFieldValuesList(dataRows []PV) []mutator.MappedFieldValues {
+	fieldsList := make([]mutator.MappedFieldValues, len(dataRows))
 
 	for i, dataRow := range dataRows {
 		fieldsList[i] = f.CreateFieldValues(dataRow)

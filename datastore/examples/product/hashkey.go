@@ -2,6 +2,7 @@ package product
 
 import (
 	"github.com/sophielizg/go-libs/datastore/fields"
+	"github.com/sophielizg/go-libs/datastore/mutator"
 )
 
 const (
@@ -10,20 +11,20 @@ const (
 )
 
 type ProductHashKey struct {
-	Brand   fields.String
-	Name    fields.String
-	builder *fields.DataRowBuilder
+	Brand        fields.String
+	Name         fields.String
+	fieldMutator *mutator.FieldMutator
 }
 
-func (v *ProductHashKey) Builder() *fields.DataRowBuilder {
-	if v.builder == nil {
-		v.builder = fields.NewDataRowBuilder(
-			fields.WithAddress(brandKey, &v.Brand),
-			fields.WithAddress(nameKey, &v.Name),
+func (v *ProductHashKey) Mutator() *mutator.FieldMutator {
+	if v.fieldMutator == nil {
+		v.fieldMutator = mutator.NewFieldMutator(
+			mutator.WithAddress(brandKey, &v.Brand),
+			mutator.WithAddress(nameKey, &v.Name),
 		)
 	}
 
-	return v.builder
+	return v.fieldMutator
 }
 
 var ProductHashKeySettings = fields.DataRowSettings{

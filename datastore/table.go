@@ -38,20 +38,20 @@ func WithTableName(name string) func(*TableSettings) {
 func WithDataRow[V any, PV DataRow[V]]() func(*TableSettings) {
 	return func(settings *TableSettings) {
 		dataRow := DataRowFactory[V, PV]{}.Create()
-		settings.DataRowSettings.EmptyValues = dataRow.Builder().GetFields()
+		settings.DataRowSettings.EmptyValues = dataRow.Mutator().GetFields()
 	}
 }
 
 func WithHashKey[H any, PH HashKey[H]]() func(*TableSettings) {
 	return func(settings *TableSettings) {
 		hashKey := DataRowFactory[H, PH]{}.Create()
-		settings.HashKeySettings.EmptyValues = hashKey.Builder().GetFields()
+		settings.HashKeySettings.EmptyValues = hashKey.Mutator().GetFields()
 	}
 }
 
 func WithSortKey[S any, PS SortKey[S]]() func(*TableSettings) {
 	return func(settings *TableSettings) {
 		sortKey := DataRowFactory[S, PS]{}.Create()
-		settings.SortKeySettings.EmptyValues = sortKey.Builder().GetFields()
+		settings.SortKeySettings.EmptyValues = sortKey.Mutator().GetFields()
 	}
 }

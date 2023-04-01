@@ -1,6 +1,6 @@
 package datastore
 
-import "github.com/sophielizg/go-libs/datastore/fields"
+import "github.com/sophielizg/go-libs/datastore/mutator"
 
 type TableBackend[C Connection] interface {
 	// Configuration
@@ -15,7 +15,7 @@ type TableBackend[C Connection] interface {
 type AppendTableBackendOps interface {
 	// Data operations
 	Scan(batchSize int) (chan *ScanFields, chan error)
-	AddMultiple(data []fields.MappedFieldValues) error
+	AddMultiple(data []mutator.MappedFieldValues) error
 }
 
 type AppendTableBackend[C Connection] interface {
@@ -27,10 +27,10 @@ type HashTableBackendOps interface {
 	// Data operations
 	Scan(batchSize int) (chan *ScanFields, chan error)
 
-	GetMultiple(hashKeys []fields.MappedFieldValues) ([]fields.MappedFieldValues, error)
-	AddMultiple(hashKeys []fields.MappedFieldValues, data []fields.MappedFieldValues) ([]fields.MappedFieldValues, error)
-	UpdateMultiple(hashKeys []fields.MappedFieldValues, data []fields.MappedFieldValues) error
-	DeleteMultiple(hashKeys []fields.MappedFieldValues) error
+	GetMultiple(hashKeys []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error)
+	AddMultiple(hashKeys []mutator.MappedFieldValues, data []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error)
+	UpdateMultiple(hashKeys []mutator.MappedFieldValues, data []mutator.MappedFieldValues) error
+	DeleteMultiple(hashKeys []mutator.MappedFieldValues) error
 }
 
 type HashTableBackend[C Connection] interface {
@@ -42,14 +42,14 @@ type SortTableBackendOps interface {
 	// Data operations
 	Scan(batchSize int) (chan *ScanFields, chan error)
 
-	GetMultiple(hashKeys []fields.MappedFieldValues, sortKeys []fields.MappedFieldValues) ([]fields.MappedFieldValues, error)
-	AddMultiple(hashKeys []fields.MappedFieldValues, sortKeys []fields.MappedFieldValues, data []fields.MappedFieldValues) ([]fields.MappedFieldValues, []fields.MappedFieldValues, error)
-	UpdateMultiple(hashKeys []fields.MappedFieldValues, sortKeys []fields.MappedFieldValues, data []fields.MappedFieldValues) error
-	DeleteMultiple(hashKeys []fields.MappedFieldValues, sortKeys []fields.MappedFieldValues) error
+	GetMultiple(hashKeys []mutator.MappedFieldValues, sortKeys []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error)
+	AddMultiple(hashKeys []mutator.MappedFieldValues, sortKeys []mutator.MappedFieldValues, data []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, []mutator.MappedFieldValues, error)
+	UpdateMultiple(hashKeys []mutator.MappedFieldValues, sortKeys []mutator.MappedFieldValues, data []mutator.MappedFieldValues) error
+	DeleteMultiple(hashKeys []mutator.MappedFieldValues, sortKeys []mutator.MappedFieldValues) error
 
-	GetWithSortKey(hashKey fields.MappedFieldValues, sortKey fields.MappedFieldValues) ([]fields.MappedFieldValues, []fields.MappedFieldValues, error)
-	UpdateWithSortKey(hashKey fields.MappedFieldValues, sortKey fields.MappedFieldValues, data fields.MappedFieldValues) error
-	DeleteWithSortKey(hashKey fields.MappedFieldValues, sortKey fields.MappedFieldValues) error
+	GetWithSortComparator(hashKey mutator.MappedFieldValues, comparator mutator.MappedFieldValues) ([]mutator.MappedFieldValues, []mutator.MappedFieldValues, error)
+	UpdateWithSortComparator(hashKey mutator.MappedFieldValues, comparator mutator.MappedFieldValues, data mutator.MappedFieldValues) error
+	DeleteWithSortComparator(hashKey mutator.MappedFieldValues, comparator mutator.MappedFieldValues) error
 }
 
 type SortTableBackend[C Connection] interface {

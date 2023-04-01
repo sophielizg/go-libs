@@ -2,6 +2,7 @@ package logtable
 
 import (
 	"github.com/sophielizg/go-libs/datastore/fields"
+	"github.com/sophielizg/go-libs/datastore/mutator"
 )
 
 const (
@@ -12,24 +13,24 @@ const (
 )
 
 type LogDataRow struct {
-	Message     fields.String
-	Source      fields.String
-	Level       fields.String
-	CreatedTime fields.Time
-	builder     *fields.DataRowBuilder
+	Message      fields.String
+	Source       fields.String
+	Level        fields.String
+	CreatedTime  fields.Time
+	fieldMutator *mutator.FieldMutator
 }
 
-func (v *LogDataRow) Builder() *fields.DataRowBuilder {
-	if v.builder == nil {
-		v.builder = fields.NewDataRowBuilder(
-			fields.WithAddress(messageKey, &v.Message),
-			fields.WithAddress(sourceKey, &v.Source),
-			fields.WithAddress(levelKey, &v.Level),
-			fields.WithAddress(createdTimeKey, &v.CreatedTime),
+func (v *LogDataRow) Mutator() *mutator.FieldMutator {
+	if v.fieldMutator == nil {
+		v.fieldMutator = mutator.NewFieldMutator(
+			mutator.WithAddress(messageKey, &v.Message),
+			mutator.WithAddress(sourceKey, &v.Source),
+			mutator.WithAddress(levelKey, &v.Level),
+			mutator.WithAddress(createdTimeKey, &v.CreatedTime),
 		)
 	}
 
-	return v.builder
+	return v.fieldMutator
 }
 
 var LogDataRowSettings = fields.DataRowSettings{
