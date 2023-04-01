@@ -2,11 +2,10 @@ package product
 
 import "github.com/sophielizg/go-libs/datastore"
 
-func ProductTable(backend datastore.HashTableBackend) datastore.HashTable[*ProductDataRow, *ProductHashKey] {
-	return datastore.HashTable[*ProductDataRow, *ProductHashKey]{
-		Name:           "Product",
-		DataRowFactory: &productDataRowFactory{},
-		HashKeyFactory: &productHashKeyFactory{},
-		Backend:        backend,
+func NewProductTable() *datastore.HashTable[ProductDataRow, *ProductDataRow, ProductHashKey, *ProductHashKey] {
+	return &datastore.HashTable[ProductDataRow, *ProductDataRow, ProductHashKey, *ProductHashKey]{
+		Settings: datastore.NewTableSettings(
+			datastore.WithTableName("Product"),
+		),
 	}
 }

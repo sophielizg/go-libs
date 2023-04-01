@@ -9,8 +9,7 @@ type FieldType interface {
 }
 
 type IntField interface {
-	Int | NullInt | UInt | NullUInt
-	BigInt | NullBigInt | BigUInt | NullBigUInt
+	Int | NullInt | UInt | NullUInt | BigInt | NullBigInt | BigUInt | NullBigUInt
 }
 
 type Int = int

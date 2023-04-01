@@ -9,12 +9,3 @@ func NewLogTable() *datastore.AppendTable[LogDataRow, *LogDataRow] {
 		),
 	}
 }
-
-// dynamoConn := DynamoDbConnection()
-
-// logs := LogTable()
-
-// dynamoBackend := NewBackend(WithConnection(dynamoConn))
-// dynamoBackend.RegisterTables(
-// 	RegisterTable(logs, dynamoTableBackend[LogTable]{})
-// )

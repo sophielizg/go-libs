@@ -1,45 +1,35 @@
 package product
 
 import (
-	"github.com/sophielizg/go-libs/datastore"
+	"github.com/sophielizg/go-libs/datastore/fields"
+)
+
+const (
+	brandKey = "Brand"
+	nameKey  = "Name"
 )
 
 type ProductHashKey struct {
-	Brand string
-	Name  string
+	Brand   fields.String
+	Name    fields.String
+	builder *fields.DataRowBuilder
 }
 
-func (d *ProductHashKey) GetFields() datastore.DataRowFields {
-	return datastore.DataRowFields{
-		"Brand": d.Brand,
-		"Name":  d.Name,
+func (v *ProductHashKey) Builder() *fields.DataRowBuilder {
+	if v.builder == nil {
+		v.builder = fields.NewDataRowBuilder(
+			fields.WithAddress(brandKey, &v.Brand),
+			fields.WithAddress(nameKey, &v.Name),
+		)
 	}
+
+	return v.builder
 }
 
-type productHashKeyFactory struct{}
-
-func (f *productHashKeyFactory) CreateDefault() *ProductHashKey {
-	return &ProductHashKey{}
-}
-
-func (f *productHashKeyFactory) CreateFromFields(fields datastore.DataRowFields) (*ProductHashKey, error) {
-	return &ProductHashKey{
-		Brand: fields["Brand"].(string),
-		Name:  fields["Name"].(string),
-	}, nil
-}
-
-func (f *productHashKeyFactory) GetFieldTypes() datastore.DataRowFieldTypes {
-	return datastore.DataRowFieldTypes{
-		"Brand": &datastore.StringField{NumChars: 64},
-		"Name":  &datastore.StringField{NumChars: 256},
-	}
-}
-
-func (f *productHashKeyFactory) GetFieldOptions() datastore.Options {
-	return datastore.Options{}
-}
-
-func (f *productHashKeyFactory) GetSortOrder() []string {
-	return []string{"Brand", "Name"}
+var ProductHashKeySettings = fields.DataRowSettings{
+	FieldSettings: fields.NewFieldSettings(
+		fields.WithNumBytes(brandKey, 63),
+		fields.WithNumBytes(nameKey, 255),
+	),
+	FieldOrder: fields.OrderedFieldKeys{brandKey, nameKey},
 }

@@ -1,18 +1,18 @@
 package datastore
 
 // A simple key-value table
-type HashTable[B HashTableBackendOps, V any, PV DataRow[V], H any, PH HashKey[H]] struct {
-	Backend        B
+type HashTable[V any, PV DataRow[V], H any, PH HashKey[H]] struct {
+	Backend        HashTableBackendOps
 	Settings       *TableSettings
 	DataRowFactory DataRowFactory[V, PV]
 	HashKeyFactory DataRowFactory[H, PH]
 }
 
-func (t *HashTable[B, V, PV, H, PH]) GetSettings() *TableSettings {
+func (t *HashTable[V, PV, H, PH]) GetSettings() *TableSettings {
 	return t.Settings
 }
 
-func (t *HashTable[B, V, PV, H, PH]) SetBackend(tableBackend B) {
+func (t *HashTable[V, PV, H, PH]) SetBackend(tableBackend HashTableBackendOps) {
 	t.Backend = tableBackend
 }
 
@@ -22,7 +22,7 @@ type HashTableScan[V any, PV DataRow[V], H any, PH HashKey[H]] struct {
 }
 
 // Scans the entire hash table, holding batchSize data rows in memory at a time
-func (t *HashTable[B, V, PV, H, PH]) Scan(batchSize int) (chan *HashTableScan[V, PV, H, PH], chan error) {
+func (t *HashTable[V, PV, H, PH]) Scan(batchSize int) (chan *HashTableScan[V, PV, H, PH], chan error) {
 	fieldsChan, errChan := t.Backend.Scan(batchSize)
 	return scan(fieldsChan, errChan, func(fields *ScanFields) (*HashTableScan[V, PV, H, PH], error) {
 		var err error
@@ -38,7 +38,7 @@ func (t *HashTable[B, V, PV, H, PH]) Scan(batchSize int) (chan *HashTableScan[V,
 }
 
 // Retrieves the values with the specified hash keys
-func (t *HashTable[B, V, PV, H, PH]) Get(hashKeys ...PH) ([]PV, error) {
+func (t *HashTable[V, PV, H, PH]) Get(hashKeys ...PH) ([]PV, error) {
 	data, err := t.Backend.GetMultiple(t.HashKeyFactory.CreateFieldValuesList(hashKeys))
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (t *HashTable[B, V, PV, H, PH]) Get(hashKeys ...PH) ([]PV, error) {
 }
 
 // Adds a value with the specified hash key
-func (t *HashTable[B, V, PV, H, PH]) Add(hashKey PH, data PV) (PH, error) {
+func (t *HashTable[V, PV, H, PH]) Add(hashKey PH, data PV) (PH, error) {
 	hashKeys, err := t.AddMultiple([]PH{hashKey}, []PV{data})
 	if err != nil {
 		return t.HashKeyFactory.Create(), err
@@ -58,7 +58,7 @@ func (t *HashTable[B, V, PV, H, PH]) Add(hashKey PH, data PV) (PH, error) {
 }
 
 // Adds multiple values with specified hash keys
-func (t *HashTable[B, V, PV, H, PH]) AddMultiple(hashKeys []PH, data []PV) ([]PH, error) {
+func (t *HashTable[V, PV, H, PH]) AddMultiple(hashKeys []PH, data []PV) ([]PH, error) {
 	if len(hashKeys) != len(data) {
 		return nil, InputLengthMismatchError
 	}
@@ -78,12 +78,12 @@ func (t *HashTable[B, V, PV, H, PH]) AddMultiple(hashKeys []PH, data []PV) ([]PH
 }
 
 // Updates a value with the specified hash key
-func (t *HashTable[B, V, PV, H, PH]) Update(hashKey PH, data PV) error {
+func (t *HashTable[V, PV, H, PH]) Update(hashKey PH, data PV) error {
 	return t.UpdateMultiple([]PH{hashKey}, []PV{data})
 }
 
 // Updates multiple values with specified hash keys
-func (t *HashTable[B, V, PV, H, PH]) UpdateMultiple(hashKeys []PH, data []PV) error {
+func (t *HashTable[V, PV, H, PH]) UpdateMultiple(hashKeys []PH, data []PV) error {
 	if len(hashKeys) != len(data) {
 		return InputLengthMismatchError
 	}
@@ -95,6 +95,6 @@ func (t *HashTable[B, V, PV, H, PH]) UpdateMultiple(hashKeys []PH, data []PV) er
 }
 
 // Deletes values with the specified hash keys
-func (t *HashTable[B, V, PV, H, PH]) Delete(hashKeys ...PH) error {
+func (t *HashTable[V, PV, H, PH]) Delete(hashKeys ...PH) error {
 	return t.Backend.DeleteMultiple(t.HashKeyFactory.CreateFieldValuesList(hashKeys))
 }

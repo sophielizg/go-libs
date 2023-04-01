@@ -1,47 +1,40 @@
 package product
 
 import (
-	"time"
+	"github.com/sophielizg/go-libs/datastore/fields"
+)
 
-	"github.com/sophielizg/go-libs/datastore"
+const (
+	departmentKey  = "Department"
+	priceKey       = "Price"
+	quantityKey    = "Quantity"
+	lastUpdatedKey = "LastUpdated"
 )
 
 type ProductDataRow struct {
-	Department  string
-	Price       float32
-	Quantity    int
-	LastUpdated time.Time
+	Department  fields.String
+	Price       fields.Float
+	Quantity    fields.Int
+	LastUpdated fields.Time
+	builder     *fields.DataRowBuilder
 }
 
-func (d *ProductDataRow) GetFields() datastore.DataRowFields {
-	return datastore.DataRowFields{
-		"Department":  d.Department,
-		"Price":       d.Price,
-		"Quantity":    d.Quantity,
-		"LastUpdated": d.LastUpdated,
+func (v *ProductDataRow) Builder() *fields.DataRowBuilder {
+	if v.builder == nil {
+		v.builder = fields.NewDataRowBuilder(
+			fields.WithAddress(departmentKey, &v.Department),
+			fields.WithAddress(priceKey, &v.Price),
+			fields.WithAddress(quantityKey, &v.Quantity),
+			fields.WithAddress(lastUpdatedKey, &v.LastUpdated),
+		)
 	}
+
+	return v.builder
 }
 
-type productDataRowFactory struct{}
-
-func (f *productDataRowFactory) CreateDefault() *ProductDataRow {
-	return nil
-}
-
-func (f *productDataRowFactory) CreateFromFields(fields datastore.DataRowFields) (*ProductDataRow, error) {
-	return &ProductDataRow{
-		Department:  fields["Department"].(string),
-		Price:       fields["Price"].(float32),
-		Quantity:    fields["Quantity"].(int),
-		LastUpdated: fields["LastUpdated"].(time.Time),
-	}, nil
-}
-
-func (f *productDataRowFactory) GetFieldTypes() datastore.DataRowFieldTypes {
-	return datastore.DataRowFieldTypes{
-		"Department":  &datastore.StringField{NumChars: 64},
-		"Price":       &datastore.FloatField{},
-		"Quantity":    &datastore.IntField{},
-		"LastUpdated": &datastore.TimeField{},
-	}
+var ProductDataRowSettings = fields.DataRowSettings{
+	FieldSettings: fields.NewFieldSettings(
+		fields.WithNumBytes(departmentKey, 63),
+	),
+	FieldOrder: fields.OrderedFieldKeys{departmentKey, priceKey, quantityKey, lastUpdatedKey},
 }

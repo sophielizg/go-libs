@@ -11,10 +11,6 @@ const (
 	createdTimeKey = "CreatedTime"
 )
 
-type A struct {
-	*LogDataRow
-}
-
 type LogDataRow struct {
 	Message     fields.String
 	Source      fields.String
@@ -39,8 +35,8 @@ func (v *LogDataRow) Builder() *fields.DataRowBuilder {
 var LogDataRowSettings = fields.DataRowSettings{
 	FieldSettings: fields.NewFieldSettings(
 		fields.WithNumBytes(messageKey, 255),
-		fields.WithNumBytes(sourceKey, 255),
-		fields.WithNumBytes(levelKey, 255),
+		fields.WithNumBytes(sourceKey, 63),
+		fields.WithNumBytes(levelKey, 7),
 	),
-	FieldOrder: fields.OrderedFieldKeys{messageKey, sourceKey, levelKey, createdTimeKey},
+	FieldOrder: fields.OrderedFieldKeys{sourceKey, levelKey, createdTimeKey, messageKey},
 }
