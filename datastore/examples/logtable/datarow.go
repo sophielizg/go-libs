@@ -1,47 +1,46 @@
 package logtable
 
 import (
-	"time"
-
-	"github.com/sophielizg/go-libs/datastore"
+	"github.com/sophielizg/go-libs/datastore/fields"
 )
 
+const (
+	messageKey     = "MessageKey"
+	sourceKey      = "Source"
+	levelKey       = "Level"
+	createdTimeKey = "CreatedTime"
+)
+
+type A struct {
+	*LogDataRow
+}
+
 type LogDataRow struct {
-	Message     string
-	Source      string
-	Level       string
-	CreatedTime time.Time
+	Message     fields.String
+	Source      fields.String
+	Level       fields.String
+	CreatedTime fields.Time
+	builder     *fields.DataRowBuilder
 }
 
-func (d *LogDataRow) GetFields() datastore.DataRowFields {
-	return datastore.DataRowFields{
-		"Message":     d.Message,
-		"Source":      d.Source,
-		"Level":       d.Level,
-		"CreatedTime": d.CreatedTime,
+func (v *LogDataRow) Builder() *fields.DataRowBuilder {
+	if v.builder == nil {
+		v.builder = fields.NewDataRowBuilder(
+			fields.WithAddress(messageKey, &v.Message),
+			fields.WithAddress(sourceKey, &v.Source),
+			fields.WithAddress(levelKey, &v.Level),
+			fields.WithAddress(createdTimeKey, &v.CreatedTime),
+		)
 	}
+
+	return v.builder
 }
 
-type LogDataRowFactory struct{}
-
-func (f *LogDataRowFactory) CreateDefault() *LogDataRow {
-	return nil
-}
-
-func (f *LogDataRowFactory) CreateFromFields(fields datastore.DataRowFields) (*LogDataRow, error) {
-	return &LogDataRow{
-		Message:     fields["Message"].(string),
-		Source:      fields["Source"].(string),
-		Level:       fields["Level"].(string),
-		CreatedTime: fields["CreatedTime"].(time.Time),
-	}, nil
-}
-
-func (f *LogDataRowFactory) GetFieldTypes() datastore.DataRowFieldTypes {
-	return datastore.DataRowFieldTypes{
-		"Message":     &datastore.StringField{NumChars: 1024},
-		"Source":      &datastore.StringField{NumChars: 64},
-		"Level":       &datastore.StringField{NumChars: 8},
-		"CreatedTime": &datastore.TimeField{},
-	}
+var LogDataRowSettings = fields.DataRowSettings{
+	FieldSettings: fields.NewFieldSettings(
+		fields.WithNumBytes(messageKey, 255),
+		fields.WithNumBytes(sourceKey, 255),
+		fields.WithNumBytes(levelKey, 255),
+	),
+	FieldOrder: fields.OrderedFieldKeys{messageKey, sourceKey, levelKey, createdTimeKey},
 }

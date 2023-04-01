@@ -1,6 +1,14 @@
 package datastore
 
-func scan[I any, O any](batchSize int, inChan chan I, inErrorChan chan error, convertFunc func(I) (O, error)) (chan O, chan error) {
+import "github.com/sophielizg/go-libs/datastore/fields"
+
+type ScanFields struct {
+	DataRow fields.MappedFieldValues
+	HashKey fields.MappedFieldValues
+	SortKey fields.MappedFieldValues
+}
+
+func scan[O any](inChan chan *ScanFields, inErrorChan chan error, convertFieldsToOutput func(*ScanFields) (O, error)) (chan O, chan error) {
 	outChan := make(chan O, 1)
 	outErrorChan := make(chan error, 1)
 	go func() {
@@ -23,7 +31,7 @@ func scan[I any, O any](batchSize int, inChan chan I, inErrorChan chan error, co
 					break
 				}
 
-				converted, err := convertFunc(inFields)
+				converted, err := convertFieldsToOutput(inFields)
 
 				if err != nil {
 					outErrorChan <- err

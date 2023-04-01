@@ -8,6 +8,8 @@ import (
 	"github.com/sophielizg/go-libs/testutils"
 )
 
+// TODO: redo tests
+
 type mockAppendTableBackend struct {
 	errorRval          error
 	errorChanRval      chan error

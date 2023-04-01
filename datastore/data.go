@@ -1,99 +1,57 @@
 package datastore
 
-type DataRowFields map[string]interface{}
+import "github.com/sophielizg/go-libs/datastore/fields"
 
-type DataRowFieldsValidationFunc = func(DataRowFields) error
+type DataRow[V any] interface {
+	*V
+	Builder() *fields.DataRowBuilder
+}
 
-func convertDataRowFieldsToInterface[T DataRow](dataRowFieldsList []DataRowFields,
-	validationFunc func(DataRowFields) error,
-	dataRowFactory DataRowFactory[T]) ([]T, error) {
-	dataRowResults := make([]T, len(dataRowFieldsList))
-	for i, dataRowFields := range dataRowFieldsList {
-		if dataRowFields == nil {
-			dataRowResults[i] = dataRowFactory.CreateDefault()
-			continue
-		}
+type HashKey[H any] interface {
+	DataRow[H]
+}
 
-		err := validationFunc(dataRowFields)
+type SortKey[S any] interface {
+	HashKey[S]
+	// GetComparators() Options
+}
+
+type DataRowFactory[V any, PV DataRow[V]] struct{}
+
+func (f DataRowFactory[V, PV]) Create() PV {
+	return PV(new(V))
+}
+
+func (f DataRowFactory[V, PV]) CreateFromFields(fields fields.MappedFieldValues) (PV, error) {
+	dataRow := f.Create()
+	err := dataRow.Builder().SetFields(fields)
+	return dataRow, err
+}
+
+func (f DataRowFactory[V, PV]) CreateFieldValues(dataRow PV) fields.MappedFieldValues {
+	return dataRow.Builder().GetFields()
+}
+
+func (f DataRowFactory[V, PV]) CreateFromFieldsList(fieldsList []fields.MappedFieldValues) ([]PV, error) {
+	dataRows := make([]PV, len(fieldsList))
+
+	for i, fields := range fieldsList {
+		var err error
+		dataRows[i], err = f.CreateFromFields(fields)
 		if err != nil {
 			return nil, err
 		}
-
-		dataRowResults[i], err = dataRowFactory.CreateFromFields(dataRowFields)
-		if err != nil {
-			return nil, err
-		}
 	}
 
-	return dataRowResults, nil
+	return dataRows, nil
 }
 
-type DataRowFieldTypes map[string]FieldType
+func (f DataRowFactory[V, PV]) CreateFieldValuesList(dataRows []PV) []fields.MappedFieldValues {
+	fieldsList := make([]fields.MappedFieldValues, len(dataRows))
 
-type DataRow interface {
-	GetFields() DataRowFields
-}
-
-type AppendTableScanFields struct {
-	DataRow DataRowFields
-}
-
-type DataRowScan[V DataRow] struct {
-	DataRow V
-}
-
-func convertDataRowToInterface[T DataRow](dataRows ...T) []DataRow {
-	generic := make([]DataRow, len(dataRows))
-	for i := range dataRows {
-		generic[i] = dataRows[i]
+	for i, dataRow := range dataRows {
+		fieldsList[i] = f.CreateFieldValues(dataRow)
 	}
 
-	return generic
-}
-
-type HashKey interface {
-	DataRow
-}
-
-type HashTableScanFields struct {
-	AppendTableScanFields
-	HashKey DataRowFields
-}
-
-type HashTableScan[V DataRow, H HashKey] struct {
-	DataRowScan[V]
-	HashKey H
-}
-
-func convertHashKeyToInterface[T HashKey](hashKeys ...T) []HashKey {
-	generic := make([]HashKey, len(hashKeys))
-	for i := range hashKeys {
-		generic[i] = hashKeys[i]
-	}
-
-	return generic
-}
-
-type SortKey interface {
-	HashKey
-	GetComparators() Options
-}
-
-type SortTableScanFields struct {
-	HashTableScanFields
-	SortKey DataRowFields
-}
-
-type SortTableScan[V DataRow, H HashKey, S SortKey] struct {
-	HashTableScan[V, H]
-	SortKey S
-}
-
-func convertSortKeyToInterface[T SortKey](sortKeys ...T) []SortKey {
-	generic := make([]SortKey, len(sortKeys))
-	for i := range sortKeys {
-		generic[i] = sortKeys[i]
-	}
-
-	return generic
+	return fieldsList
 }

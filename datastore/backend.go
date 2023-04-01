@@ -1,50 +1,62 @@
 package datastore
 
-type AppendTableBackend interface {
-	// Schema
-	ValidateSchema(schema *AppendTableSchema) error
-	CreateOrUpdateSchema(schema *AppendTableSchema) error
-
-	// Data operations
-	Scan(schema *AppendTableSchema, batchSize int) (chan *AppendTableScanFields, chan error)
-	AppendMultiple(schema *AppendTableSchema, data []DataRow) error
-	DeleteAll(schema *AppendTableSchema, batchSize int) error
+// TODO: revisit some of this and other naming (and filenames)
+type Backend[C Connection] struct {
+	Conn C
 }
 
-type HashTableBackend interface {
-	// Configuration
-	SupportedFieldOptions() SupportedOptions
+func (b *Backend[C]) RegisterTables(registerFuncs ...func(b *Backend[C]) error) error {
+	for _, register := range registerFuncs {
+		if err := register(b); err != nil {
+			return err
+		}
+	}
 
-	// Schema
-	ValidateSchema(schema *HashTableSchema) error
-	CreateOrUpdateSchema(schema *HashTableSchema) error
-
-	// Data operations
-	Scan(schema *HashTableSchema, batchSize int) (chan *HashTableScanFields, chan error)
-
-	GetMultiple(schema *HashTableSchema, hashKeys []HashKey) ([]DataRowFields, error)
-	AddMultiple(schema *HashTableSchema, hashKeys []HashKey, data []DataRow) ([]DataRowFields, error)
-	UpdateMultiple(schema *HashTableSchema, hashKeys []HashKey, data []DataRow) error
-	DeleteMultiple(schema *HashTableSchema, hashKeys []HashKey) error
+	return nil
 }
 
-type SortTableBackend interface {
-	// Configuration
-	SupportedFieldOptions() SupportedOptions
+func NewBackend[C Connection](options ...func(*Backend[C])) *Backend[C] {
+	backend := &Backend[C]{}
 
-	// Schema
-	ValidateSchema(schema *SortTableSchema) error
-	CreateOrUpdateSchema(schema *SortTableSchema) error
+	for _, option := range options {
+		option(backend)
+	}
 
-	// Data operations
-	Scan(schema *SortTableSchema, batchSize int) (chan *SortTableScanFields, chan error)
+	return backend
+}
 
-	GetMultiple(schema *SortTableSchema, hashKeys []HashKey, sortKeys []SortKey) ([]DataRowFields, error)
-	AddMultiple(schema *SortTableSchema, hashKeys []HashKey, sortKeys []SortKey, data []DataRow) ([]DataRowFields, []DataRowFields, error)
-	UpdateMultiple(schema *SortTableSchema, hashKeys []HashKey, sortKeys []SortKey, data []DataRow) error
-	DeleteMultiple(schema *SortTableSchema, hashKeys []HashKey, sortKeys []SortKey) error
+func WithConnection[C Connection](conn C) func(*Backend[C]) {
+	return func(b *Backend[C]) {
+		b.Conn = conn
+	}
+}
 
-	GetWithSortKey(schema *SortTableSchema, hashKey HashKey, sortKey SortKey) ([]DataRowFields, []DataRowFields, error)
-	UpdateWithSortKey(schema *SortTableSchema, hashKey HashKey, sortKey SortKey, data DataRow) error
-	DeleteWithSortKey(schema *SortTableSchema, hashKey HashKey, sortKey SortKey) error
+func RegisterAppendTable[C Connection, TB AppendTableBackend[C], T Table[AppendTableBackendOps]](table T, tableBackend TB) func(*Backend[C]) error {
+	return func(b *Backend[C]) error {
+		table.SetBackend(tableBackend)
+		table.Init()
+		tableBackend.SetConnection(b.Conn)
+		tableBackend.SetSettings(table.GetSettings())
+		return tableBackend.Register()
+	}
+}
+
+func RegisterHashTable[C Connection, TB HashTableBackend[C], T Table[HashTableBackendOps]](table T, tableBackend TB) func(*Backend[C]) error {
+	return func(b *Backend[C]) error {
+		table.SetBackend(tableBackend)
+		table.Init()
+		tableBackend.SetConnection(b.Conn)
+		tableBackend.SetSettings(table.GetSettings())
+		return tableBackend.Register()
+	}
+}
+
+func RegisterSortTable[C Connection, TB SortTableBackend[C], T Table[SortTableBackendOps]](table T, tableBackend TB) func(*Backend[C]) error {
+	return func(b *Backend[C]) error {
+		table.SetBackend(tableBackend)
+		table.Init()
+		tableBackend.SetConnection(b.Conn)
+		tableBackend.SetSettings(table.GetSettings())
+		return tableBackend.Register()
+	}
 }

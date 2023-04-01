@@ -4,6 +4,8 @@ import (
 	"errors"
 )
 
+// TODO: this can probably be deleted
+
 func validateDataRowFieldName(fieldName string, dataRowFields DataRowFields) error {
 	_, ok := dataRowFields[fieldName]
 	if !ok {

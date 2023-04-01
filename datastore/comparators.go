@@ -1,5 +1,7 @@
 package datastore
 
+// TODO: revisit comparator system
+
 const (
 	EqualComparator Option = iota
 	LessThanComparator

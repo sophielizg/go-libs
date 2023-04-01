@@ -1,203 +1,100 @@
 package datastore
 
-import (
-	"errors"
-)
-
 // A simple key-value table
-type HashTable[V DataRow, H HashKey] struct {
-	Backend        HashTableBackend
-	DataRowFactory DataRowFactory[V]
-	HashKeyFactory KeyFactory[H]
-	Name           string
-	schema         *HashTableSchema
+type HashTable[B HashTableBackendOps, V any, PV DataRow[V], H any, PH HashKey[H]] struct {
+	Backend        B
+	Settings       *TableSettings
+	DataRowFactory DataRowFactory[V, PV]
+	HashKeyFactory DataRowFactory[H, PH]
 }
 
-func (t *HashTable[V, H]) getSchema() *HashTableSchema {
-	if t.schema == nil {
-		t.schema = &HashTableSchema{
-			BaseTableSchema: BaseTableSchema{
-				Name:                 t.Name,
-				DataRowSchemaFactory: t.DataRowFactory,
-			},
-			HashKeySchemaFactory:  t.HashKeyFactory,
-			SupportedFieldOptions: t.getSupportedFieldOptions(),
-		}
-	}
-
-	return t.schema
+func (t *HashTable[B, V, PV, H, PH]) GetSettings() *TableSettings {
+	return t.Settings
 }
 
-func (t *HashTable[V, H]) getSupportedFieldOptions() SupportedOptions {
-	supported := t.Backend.SupportedFieldOptions()
-	if supported == nil {
-		supported = DefaultSupportedFieldOptions
-	}
-
-	return supported
+func (t *HashTable[B, V, PV, H, PH]) SetBackend(tableBackend B) {
+	t.Backend = tableBackend
 }
 
-// Validates the schema of the hash table
-func (t *HashTable[V, H]) ValidateSchema() error {
-	err := t.getSchema().Validate()
-	if err != nil {
-		return err
-	}
-
-	return t.Backend.ValidateSchema(t.getSchema())
-}
-
-// Creates or updates the schema of the hash table
-func (t *HashTable[V, H]) CreateOrUpdateSchema() error {
-	err := t.ValidateSchema()
-	if err != nil {
-		return err
-	}
-
-	return t.Backend.CreateOrUpdateSchema(t.getSchema())
+type HashTableScan[V any, PV DataRow[V], H any, PH HashKey[H]] struct {
+	DataRow PV
+	HashKey PH
 }
 
 // Scans the entire hash table, holding batchSize data rows in memory at a time
-func (t *HashTable[V, H]) Scan(batchSize int) (chan HashTableScan[V, H], chan error) {
-	scanDataRowChan, scanErrorChan := t.Backend.Scan(t.getSchema(), batchSize)
-	return scan(
-		batchSize,
-		scanDataRowChan,
-		scanErrorChan,
-		func(scanDataRow *HashTableScanFields) (HashTableScan[V, H], error) {
-			var err error
-			res := HashTableScan[V, H]{}
+func (t *HashTable[B, V, PV, H, PH]) Scan(batchSize int) (chan *HashTableScan[V, PV, H, PH], chan error) {
+	fieldsChan, errChan := t.Backend.Scan(batchSize)
+	return scan(fieldsChan, errChan, func(fields *ScanFields) (*HashTableScan[V, PV, H, PH], error) {
+		var err error
+		res := &HashTableScan[V, PV, H, PH]{}
 
-			res.DataRow, err = t.DataRowFactory.CreateFromFields(scanDataRow.DataRow)
-
-			if err == nil {
-				res.HashKey, err = t.HashKeyFactory.CreateFromFields(scanDataRow.HashKey)
-			}
-
-			return res, err
-		},
-	)
+		if res.DataRow, err = t.DataRowFactory.CreateFromFields(fields.DataRow); err != nil {
+			return nil, err
+		} else if res.HashKey, err = t.HashKeyFactory.CreateFromFields(fields.HashKey); err != nil {
+			return nil, err
+		}
+		return res, nil
+	})
 }
 
 // Retrieves the values with the specified hash keys
-func (t *HashTable[V, H]) Get(hashKeys ...H) ([]V, error) {
-	genericKeys := convertHashKeyToInterface(hashKeys...)
-	dataRowFieldsList, err := t.Backend.GetMultiple(t.getSchema(), genericKeys)
+func (t *HashTable[B, V, PV, H, PH]) Get(hashKeys ...PH) ([]PV, error) {
+	data, err := t.Backend.GetMultiple(t.HashKeyFactory.CreateFieldValuesList(hashKeys))
 	if err != nil {
 		return nil, err
-	} else if len(dataRowFieldsList) > len(hashKeys) {
-		return nil, errors.New("Datastore constraint not satisfied, more values than keys returned")
 	}
 
-	return convertDataRowFieldsToInterface(
-		dataRowFieldsList,
-		t.getSchema().validateDataRowFields,
-		t.DataRowFactory,
-	)
+	return t.DataRowFactory.CreateFromFieldsList(data)
 }
 
 // Adds a value with the specified hash key
-func (t *HashTable[V, H]) Add(hashKey H, data V) (H, error) {
-	hashKeys, err := t.AddMultiple([]H{hashKey}, []V{data})
+func (t *HashTable[B, V, PV, H, PH]) Add(hashKey PH, data PV) (PH, error) {
+	hashKeys, err := t.AddMultiple([]PH{hashKey}, []PV{data})
 	if err != nil {
-		return t.HashKeyFactory.CreateDefault(), err
+		return t.HashKeyFactory.Create(), err
 	}
 
-	if len(hashKeys) != 1 {
-		return t.HashKeyFactory.CreateDefault(), errors.New("Must return exactly one HashKey from Add")
-	} else {
-		return hashKeys[0], nil
-	}
+	return hashKeys[0], nil
 }
 
 // Adds multiple values with specified hash keys
-func (t *HashTable[V, H]) AddMultiple(hashKeys []H, data []V) ([]H, error) {
+func (t *HashTable[B, V, PV, H, PH]) AddMultiple(hashKeys []PH, data []PV) ([]PH, error) {
 	if len(hashKeys) != len(data) {
-		return nil, errors.New("The number of HashKeys must match the number of data values")
+		return nil, InputLengthMismatchError
 	}
 
-	genericData := convertDataRowToInterface(data...)
-	genericKeys := convertHashKeyToInterface(hashKeys...)
+	fieldValues, err := t.Backend.AddMultiple(
+		t.HashKeyFactory.CreateFieldValuesList(hashKeys),
+		t.DataRowFactory.CreateFieldValuesList(data),
+	)
 
-	hashKeyFieldsList, err := t.Backend.AddMultiple(t.getSchema(), genericKeys, genericData)
 	if err != nil {
 		return nil, err
-	} else if len(hashKeyFieldsList) != len(hashKeys) {
-		return nil, errors.New("Datastore constraint not satisfied, must return exactly the same number of HashKeys as were input")
+	} else if len(fieldValues) != len(hashKeys) {
+		return nil, OutputLengthMismatchError
 	}
 
-	return convertDataRowFieldsToInterface[H](
-		hashKeyFieldsList,
-		t.getSchema().validateHashKeyFields,
-		t.HashKeyFactory,
-	)
+	return t.HashKeyFactory.CreateFromFieldsList(fieldValues)
 }
 
 // Updates a value with the specified hash key
-func (t *HashTable[V, H]) Update(hashKey H, data V) error {
-	return t.UpdateMultiple([]H{hashKey}, []V{data})
+func (t *HashTable[B, V, PV, H, PH]) Update(hashKey PH, data PV) error {
+	return t.UpdateMultiple([]PH{hashKey}, []PV{data})
 }
 
 // Updates multiple values with specified hash keys
-func (t *HashTable[V, H]) UpdateMultiple(hashKeys []H, data []V) error {
+func (t *HashTable[B, V, PV, H, PH]) UpdateMultiple(hashKeys []PH, data []PV) error {
 	if len(hashKeys) != len(data) {
-		return errors.New("The number of HashKeys must match the number of data values")
+		return InputLengthMismatchError
 	}
 
-	genericData := convertDataRowToInterface(data...)
-	genericKeys := convertHashKeyToInterface(hashKeys...)
-
-	return t.Backend.UpdateMultiple(t.getSchema(), genericKeys, genericData)
+	return t.Backend.UpdateMultiple(
+		t.HashKeyFactory.CreateFieldValuesList(hashKeys),
+		t.DataRowFactory.CreateFieldValuesList(data),
+	)
 }
 
 // Deletes values with the specified hash keys
-func (t *HashTable[V, H]) Delete(hashKeys ...H) error {
-	genericKeys := convertHashKeyToInterface(hashKeys...)
-	return t.Backend.DeleteMultiple(t.getSchema(), genericKeys)
-}
-
-// Transfers the data from this hash table to another hash table of the same type
-func (t *HashTable[V, H]) TransferTo(newTable *HashTable[V, H], batchSize int) error {
-	dataChan, errorChan := t.Scan(batchSize)
-
-	for {
-		dataBuf := make([]V, 0, batchSize)
-		hashKeyBuf := make([]H, 0, batchSize)
-
-	makeBuf:
-		for {
-			select {
-			case err, more := <-errorChan:
-				if !more {
-					errorChan = nil
-					break makeBuf
-				}
-
-				return err
-			case data, more := <-dataChan:
-				if !more {
-					dataChan = nil
-					break makeBuf
-				}
-
-				dataBuf = append(dataBuf, data.DataRow)
-				hashKeyBuf = append(hashKeyBuf, data.HashKey)
-			}
-
-			if len(dataBuf) == batchSize {
-				break
-			}
-		}
-
-		if len(dataBuf) > 0 {
-			_, err := newTable.AddMultiple(hashKeyBuf, dataBuf)
-			if err != nil {
-				return err
-			}
-		}
-
-		if dataChan == nil && errorChan == nil {
-			return nil
-		}
-	}
+func (t *HashTable[B, V, PV, H, PH]) Delete(hashKeys ...PH) error {
+	return t.Backend.DeleteMultiple(t.HashKeyFactory.CreateFieldValuesList(hashKeys))
 }
