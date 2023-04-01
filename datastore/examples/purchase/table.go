@@ -2,12 +2,15 @@ package purchase
 
 import "github.com/sophielizg/go-libs/datastore"
 
-func PurchaseTable(backend datastore.SortTableBackend) datastore.SortTable[*PurchaseDataRow, *PurchaseHashKey, *PurchaseSortKey] {
-	return datastore.SortTable[*PurchaseDataRow, *PurchaseHashKey, *PurchaseSortKey]{
-		Name:           "Purchase",
-		DataRowFactory: &PurchaseDataRowFactory{},
-		HashKeyFactory: &PurchaseHashKeyFactory{},
-		SortKeyFactory: &PurchaseSortKeyFactory{},
-		Backend:        backend,
+type PurchaseTable = datastore.SortTable[PurchaseDataRow, *PurchaseDataRow, PurchaseHashKey, *PurchaseHashKey, PurchaseSortKey, *PurchaseSortKey, PurchaseSortKeyComparator, *PurchaseSortKeyComparator]
+
+func NewPurchaseTable() *PurchaseTable {
+	return &PurchaseTable{
+		Settings: datastore.NewTableSettings(
+			datastore.WithTableName("Purchase"),
+			datastore.WithDataRowSettings(&PurchaseDataRowSettings),
+			datastore.WithHashKeySettings(&ProductHashKeySettings),
+			datastore.WithSortKeySettings(&PurchaseSortKeySettings),
+		),
 	}
 }

@@ -2,10 +2,13 @@ package logtable
 
 import "github.com/sophielizg/go-libs/datastore"
 
-func NewLogTable() *datastore.AppendTable[LogDataRow, *LogDataRow] {
-	return &datastore.AppendTable[LogDataRow, *LogDataRow]{
+type LogTable = datastore.AppendTable[LogDataRow, *LogDataRow]
+
+func NewLogTable() *LogTable {
+	return &LogTable{
 		Settings: datastore.NewTableSettings(
 			datastore.WithTableName("Log"),
+			datastore.WithDataRowSettings(&LogDataRowSettings),
 		),
 	}
 }

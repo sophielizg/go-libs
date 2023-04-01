@@ -1,55 +1,38 @@
 package datastore
 
+import "github.com/sophielizg/go-libs/datastore/mutator"
+
 // A key-value table that supports a partition key to sort values
-type SortTable[B SortTableBackendOps, V any, PV DataRow[V], H any, PH HashKey[H], S any, PS SortKey[S], C SortKeyComparator] struct {
-	Backend        B
+type SortTable[V any, PV mutator.Mutatable[V], H any, PH mutator.Mutatable[H], S any, PS mutator.Mutatable[S], C any, PC mutator.Mutatable[C]] struct {
+	Backend        SortTableBackendOps
 	Settings       *TableSettings
-	DataRowFactory DataRowFactory[V, PV]
-	HashKeyFactory DataRowFactory[H, PH]
-	SortKeyFactory DataRowFactory[S, PS]
+	DataRowFactory mutator.MutatableFactory[V, PV]
+	HashKeyFactory mutator.MutatableFactory[H, PH]
+	SortKeyFactory mutator.MutatableFactory[S, PS]
 }
 
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) GetSettings() *TableSettings {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) Init() {
+	t.Settings.ApplyOption(WithDataRow[V, PV]())
+	t.Settings.ApplyOption(WithHashKey[H, PH]())
+	t.Settings.ApplyOption(WithSortKey[S, PS]())
+}
+
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) GetSettings() *TableSettings {
 	return t.Settings
 }
 
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) SetBackend(tableBackend B) {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) SetBackend(tableBackend SortTableBackendOps) {
 	t.Backend = tableBackend
 }
 
-// Validates the properties of a sort key against the table schema
-// func (t *SortTable[B, V, PV, H, PH, S, PS, C]) ValidateSortKey(sortKey S) error {
-// 	foundEmpty := false
-// 	fieldComparators := sortKey.GetComparators()
-// 	sortOrder := t.SortKeyFactory.GetSortOrder()
-
-// 	for _, fieldName := range sortOrder {
-// 		comparators, ok := fieldComparators[fieldName]
-// 		if !ok || comparators == nil {
-// 			foundEmpty = true
-// 			continue
-// 		} else if foundEmpty {
-// 			return errors.New("All SortKey fields on the left side must be included in compare")
-// 		}
-
-// 		for _, comparator := range comparators {
-// 			if !isComparator(comparator) {
-// 				return errors.New("Found invalid type in comparators")
-// 			}
-// 		}
-// 	}
-
-// 	return nil
-// }
-
-type SortTableScan[V any, PV DataRow[V], H any, PH HashKey[H], S any, PS SortKey[S]] struct {
+type SortTableScan[V any, PV mutator.Mutatable[V], H any, PH mutator.Mutatable[H], S any, PS mutator.Mutatable[S]] struct {
 	DataRow PV
 	HashKey PH
 	SortKey PS
 }
 
 // Scans the entire sort table, holding batchSize data rows in memory at a time
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) Scan(batchSize int) (chan *SortTableScan[V, PV, H, PH, S, PS], chan error) {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) Scan(batchSize int) (chan *SortTableScan[V, PV, H, PH, S, PS], chan error) {
 	fieldsChan, errChan := t.Backend.Scan(batchSize)
 	return scan(fieldsChan, errChan, func(fields *ScanFields) (*SortTableScan[V, PV, H, PH, S, PS], error) {
 		var err error
@@ -67,7 +50,7 @@ func (t *SortTable[B, V, PV, H, PH, S, PS, C]) Scan(batchSize int) (chan *SortTa
 }
 
 // Retrieves the values with the specified hash and sort key
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) Get(hashKey PH, sortKey PS) (PV, error) {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) Get(hashKey PH, sortKey PS) (PV, error) {
 	vals, err := t.GetMultiple([]PH{hashKey}, []PS{sortKey})
 	if err != nil {
 		return t.DataRowFactory.Create(), err
@@ -77,7 +60,7 @@ func (t *SortTable[B, V, PV, H, PH, S, PS, C]) Get(hashKey PH, sortKey PS) (PV, 
 }
 
 // Retrieves the values with the specified hash and sort keys
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) GetMultiple(hashKeys []PH, sortKeys []PS) ([]PV, error) {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) GetMultiple(hashKeys []PH, sortKeys []PS) ([]PV, error) {
 	if len(hashKeys) != len(sortKeys) {
 		return nil, InputLengthMismatchError
 	}
@@ -96,7 +79,7 @@ func (t *SortTable[B, V, PV, H, PH, S, PS, C]) GetMultiple(hashKeys []PH, sortKe
 }
 
 // Adds a value with the specified hash and sort key
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) Add(hashKey PH, sortKey PS, data PV) (PH, PS, error) {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) Add(hashKey PH, sortKey PS, data PV) (PH, PS, error) {
 	hashKeys, sortKeys, err := t.AddMultiple([]PH{hashKey}, []PS{sortKey}, []PV{data})
 	if err != nil {
 		return t.HashKeyFactory.Create(), t.SortKeyFactory.Create(), err
@@ -106,7 +89,7 @@ func (t *SortTable[B, V, PV, H, PH, S, PS, C]) Add(hashKey PH, sortKey PS, data 
 }
 
 // Adds multiple values with the specified hash and sort keys
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) AddMultiple(hashKeys []PH, sortKeys []PS, data []PV) ([]PH, []PS, error) {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) AddMultiple(hashKeys []PH, sortKeys []PS, data []PV) ([]PH, []PS, error) {
 	if len(hashKeys) != len(sortKeys) || len(hashKeys) != len(data) {
 		return nil, nil, InputLengthMismatchError
 	}
@@ -132,12 +115,12 @@ func (t *SortTable[B, V, PV, H, PH, S, PS, C]) AddMultiple(hashKeys []PH, sortKe
 }
 
 // Updates a value with the specified hash and sort key
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) Update(hashKey PH, sortKey PS, data PV) error {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) Update(hashKey PH, sortKey PS, data PV) error {
 	return t.UpdateMultiple([]PH{hashKey}, []PS{sortKey}, []PV{data})
 }
 
 // Updates multiple values with the specified hash and sort keys
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) UpdateMultiple(hashKeys []PH, sortKeys []PS, data []PV) error {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) UpdateMultiple(hashKeys []PH, sortKeys []PS, data []PV) error {
 	if len(hashKeys) != len(data) {
 		return InputLengthMismatchError
 	}
@@ -150,12 +133,12 @@ func (t *SortTable[B, V, PV, H, PH, S, PS, C]) UpdateMultiple(hashKeys []PH, sor
 }
 
 // Deletes value with the specified hash and sort key
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) Delete(hashKey PH, sortKey PS) error {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) Delete(hashKey PH, sortKey PS) error {
 	return t.DeleteMultiple([]PH{hashKey}, []PS{sortKey})
 }
 
 // Deletes multiple value with the specified hash and sort keys
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) DeleteMultiple(hashKeys []PH, sortKeys []PS) error {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) DeleteMultiple(hashKeys []PH, sortKeys []PS) error {
 	if len(hashKeys) != len(sortKeys) {
 		return InputLengthMismatchError
 	}
@@ -166,7 +149,7 @@ func (t *SortTable[B, V, PV, H, PH, S, PS, C]) DeleteMultiple(hashKeys []PH, sor
 	)
 }
 
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) validateComparator(comparator C) error {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) validateComparator(comparator PC) error {
 	foundEmpty := false
 
 	for _, fieldName := range t.Settings.SortKeySettings.FieldOrder {
@@ -182,7 +165,7 @@ func (t *SortTable[B, V, PV, H, PH, S, PS, C]) validateComparator(comparator C) 
 	return nil
 }
 
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) GetWithSortComparator(hashKey PH, comparator C) ([]PV, []PS, error) {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) GetWithSortComparator(hashKey PH, comparator PC) ([]PV, []PS, error) {
 	if err := t.validateComparator(comparator); err != nil {
 		return nil, nil, err
 	}
@@ -206,7 +189,7 @@ func (t *SortTable[B, V, PV, H, PH, S, PS, C]) GetWithSortComparator(hashKey PH,
 	return dataRowResults, sortKeyResults, err
 }
 
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) UpdateWithSortKey(hashKey PH, comparator C, data PV) error {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) UpdateWithSortKey(hashKey PH, comparator PC, data PV) error {
 	if err := t.validateComparator(comparator); err != nil {
 		return err
 	}
@@ -218,7 +201,7 @@ func (t *SortTable[B, V, PV, H, PH, S, PS, C]) UpdateWithSortKey(hashKey PH, com
 	)
 }
 
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) DeleteWithSortKey(hashKey PH, comparator C) error {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) DeleteWithSortKey(hashKey PH, comparator PC) error {
 	if err := t.validateComparator(comparator); err != nil {
 		return err
 	}
@@ -230,49 +213,21 @@ func (t *SortTable[B, V, PV, H, PH, S, PS, C]) DeleteWithSortKey(hashKey PH, com
 }
 
 // Transfers the data from this sort table to another sort table of the same type
-func (t *SortTable[B, V, PV, H, PH, S, PS, C]) TransferTo(newTable *SortTable[B, V, PV, H, PH, S, PS, C], batchSize int) error {
+func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) TransferTo(newTable *SortTable[V, PV, H, PH, S, PS, C, PC], batchSize int) error {
 	dataChan, errorChan := t.Scan(batchSize)
 
-	for {
-		dataBuf := make([]V, 0, batchSize)
-		hashKeyBuf := make([]H, 0, batchSize)
-		sortKeyBuf := make([]S, 0, batchSize)
+	return transfer(batchSize, dataChan, errorChan, func(buf []*SortTableScan[V, PV, H, PH, S, PS]) error {
+		dataRows := make([]PV, len(buf))
+		hashKeys := make([]PH, len(buf))
+		sortKeys := make([]PS, len(buf))
 
-	makeBuf:
-		for {
-			select {
-			case err, more := <-errorChan:
-				if !more {
-					errorChan = nil
-					break makeBuf
-				}
-
-				return err
-			case data, more := <-dataChan:
-				if !more {
-					dataChan = nil
-					break makeBuf
-				}
-
-				dataBuf = append(dataBuf, data.DataRow)
-				hashKeyBuf = append(hashKeyBuf, data.HashKey)
-				sortKeyBuf = append(sortKeyBuf, data.SortKey)
-			}
-
-			if len(dataBuf) == batchSize {
-				break
-			}
+		for i, val := range buf {
+			dataRows[i] = val.DataRow
+			hashKeys[i] = val.HashKey
+			sortKeys[i] = val.SortKey
 		}
 
-		if len(dataBuf) > 0 {
-			_, _, err := newTable.AddMultiple(hashKeyBuf, sortKeyBuf, dataBuf)
-			if err != nil {
-				return err
-			}
-		}
-
-		if dataChan == nil && errorChan == nil {
-			return nil
-		}
-	}
+		_, _, err := newTable.AddMultiple(hashKeys, sortKeys, dataRows)
+		return err
+	})
 }

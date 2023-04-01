@@ -1,41 +1,32 @@
 package purchase
 
 import (
-	"github.com/sophielizg/go-libs/datastore"
+	"github.com/sophielizg/go-libs/datastore/fields"
+	"github.com/sophielizg/go-libs/datastore/mutator"
+)
+
+const (
+	customerNameKey = "CustomerName"
 )
 
 type PurchaseHashKey struct {
-	CustomerName string
+	CustomerName fields.String
+	fieldMutator *mutator.FieldMutator
 }
 
-func (d *PurchaseHashKey) GetFields() datastore.DataRowFields {
-	return datastore.DataRowFields{
-		"CustomerName": d.CustomerName,
+func (v *PurchaseHashKey) Mutator() *mutator.FieldMutator {
+	if v.fieldMutator == nil {
+		v.fieldMutator = mutator.NewFieldMutator(
+			mutator.WithAddress(customerNameKey, &v.CustomerName),
+		)
 	}
+
+	return v.fieldMutator
 }
 
-type PurchaseHashKeyFactory struct{}
-
-func (f *PurchaseHashKeyFactory) CreateDefault() *PurchaseHashKey {
-	return &PurchaseHashKey{}
-}
-
-func (f *PurchaseHashKeyFactory) CreateFromFields(fields datastore.DataRowFields) (*PurchaseHashKey, error) {
-	return &PurchaseHashKey{
-		CustomerName: fields["CustomerName"].(string),
-	}, nil
-}
-
-func (f *PurchaseHashKeyFactory) GetFieldTypes() datastore.DataRowFieldTypes {
-	return datastore.DataRowFieldTypes{
-		"CustomerName": &datastore.StringField{NumChars: 256},
-	}
-}
-
-func (f *PurchaseHashKeyFactory) GetFieldOptions() datastore.Options {
-	return datastore.Options{}
-}
-
-func (f *PurchaseHashKeyFactory) GetSortOrder() []string {
-	return []string{"CustomerName"}
+var ProductHashKeySettings = fields.DataRowSettings{
+	FieldSettings: fields.NewFieldSettings(
+		fields.WithNumBytes(customerNameKey, 123),
+	),
+	FieldOrder: fields.OrderedFieldKeys{customerNameKey},
 }

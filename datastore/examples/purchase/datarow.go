@@ -1,47 +1,41 @@
 package purchase
 
 import (
-	"time"
+	"github.com/sophielizg/go-libs/datastore/fields"
+	"github.com/sophielizg/go-libs/datastore/mutator"
+)
 
-	"github.com/sophielizg/go-libs/datastore"
+const (
+	departmentKey  = "Department"
+	priceKey       = "Price"
+	quantityKey    = "Quantity"
+	lastUpdatedKey = "LastUpdated"
 )
 
 type PurchaseDataRow struct {
-	Department  string
-	Price       float32
-	Quantity    int
-	LastUpdated time.Time
+	Department   fields.String
+	Price        fields.Float
+	Quantity     fields.Int
+	LastUpdated  fields.Time
+	fieldMutator *mutator.FieldMutator
 }
 
-func (d *PurchaseDataRow) GetFields() datastore.DataRowFields {
-	return datastore.DataRowFields{
-		"Department":  d.Department,
-		"Price":       d.Price,
-		"Quantity":    d.Quantity,
-		"LastUpdated": d.LastUpdated,
+func (v *PurchaseDataRow) Mutator() *mutator.FieldMutator {
+	if v.fieldMutator == nil {
+		v.fieldMutator = mutator.NewFieldMutator(
+			mutator.WithAddress(departmentKey, &v.Department),
+			mutator.WithAddress(priceKey, &v.Price),
+			mutator.WithAddress(quantityKey, &v.Quantity),
+			mutator.WithAddress(lastUpdatedKey, &v.LastUpdated),
+		)
 	}
+
+	return v.fieldMutator
 }
 
-type PurchaseDataRowFactory struct{}
-
-func (f *PurchaseDataRowFactory) CreateDefault() *PurchaseDataRow {
-	return &PurchaseDataRow{}
-}
-
-func (f *PurchaseDataRowFactory) CreateFromFields(fields datastore.DataRowFields) (*PurchaseDataRow, error) {
-	return &PurchaseDataRow{
-		Department:  fields["Department"].(string),
-		Price:       fields["Price"].(float32),
-		Quantity:    fields["Quantity"].(int),
-		LastUpdated: fields["LastUpdated"].(time.Time),
-	}, nil
-}
-
-func (f *PurchaseDataRowFactory) GetFieldTypes() datastore.DataRowFieldTypes {
-	return datastore.DataRowFieldTypes{
-		"Department":  &datastore.StringField{NumChars: 64},
-		"Price":       &datastore.FloatField{},
-		"Quantity":    &datastore.IntField{},
-		"LastUpdated": &datastore.TimeField{},
-	}
+var PurchaseDataRowSettings = fields.DataRowSettings{
+	FieldSettings: fields.NewFieldSettings(
+		fields.WithNumBytes(departmentKey, 63),
+	),
+	FieldOrder: fields.OrderedFieldKeys{departmentKey, priceKey, quantityKey, lastUpdatedKey},
 }

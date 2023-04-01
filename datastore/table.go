@@ -1,6 +1,9 @@
 package datastore
 
-import "github.com/sophielizg/go-libs/datastore/fields"
+import (
+	"github.com/sophielizg/go-libs/datastore/fields"
+	"github.com/sophielizg/go-libs/datastore/mutator"
+)
 
 type Table[B any] interface {
 	Init()
@@ -10,9 +13,9 @@ type Table[B any] interface {
 
 type TableSettings struct {
 	Name            string
-	DataRowSettings fields.DataRowSettings
-	HashKeySettings fields.DataRowSettings
-	SortKeySettings fields.DataRowSettings
+	DataRowSettings *fields.DataRowSettings
+	HashKeySettings *fields.DataRowSettings
+	SortKeySettings *fields.DataRowSettings
 }
 
 func (s *TableSettings) ApplyOption(option func(*TableSettings)) {
@@ -35,23 +38,41 @@ func WithTableName(name string) func(*TableSettings) {
 	}
 }
 
-func WithDataRow[V any, PV DataRow[V]]() func(*TableSettings) {
+func WithDataRowSettings(dataRowSettings *fields.DataRowSettings) func(*TableSettings) {
 	return func(settings *TableSettings) {
-		dataRow := DataRowFactory[V, PV]{}.Create()
-		settings.DataRowSettings.EmptyValues = dataRow.Mutator().GetFields()
+		settings.DataRowSettings = dataRowSettings
 	}
 }
 
-func WithHashKey[H any, PH HashKey[H]]() func(*TableSettings) {
+func WithHashKeySettings(dataRowSettings *fields.DataRowSettings) func(*TableSettings) {
 	return func(settings *TableSettings) {
-		hashKey := DataRowFactory[H, PH]{}.Create()
-		settings.HashKeySettings.EmptyValues = hashKey.Mutator().GetFields()
+		settings.HashKeySettings = dataRowSettings
 	}
 }
 
-func WithSortKey[S any, PS SortKey[S]]() func(*TableSettings) {
+func WithSortKeySettings(dataRowSettings *fields.DataRowSettings) func(*TableSettings) {
 	return func(settings *TableSettings) {
-		sortKey := DataRowFactory[S, PS]{}.Create()
-		settings.SortKeySettings.EmptyValues = sortKey.Mutator().GetFields()
+		settings.SortKeySettings = dataRowSettings
+	}
+}
+
+func WithDataRow[V any, PV mutator.Mutatable[V]]() func(*TableSettings) {
+	return func(settings *TableSettings) {
+		empty := mutator.MutatableFactory[V, PV]{}.Create()
+		settings.DataRowSettings.EmptyValues = empty.Mutator().GetFields()
+	}
+}
+
+func WithHashKey[H any, PH mutator.Mutatable[H]]() func(*TableSettings) {
+	return func(settings *TableSettings) {
+		empty := mutator.MutatableFactory[H, PH]{}.Create()
+		settings.HashKeySettings.EmptyValues = empty.Mutator().GetFields()
+	}
+}
+
+func WithSortKey[S any, PS mutator.Mutatable[S]]() func(*TableSettings) {
+	return func(settings *TableSettings) {
+		empty := mutator.MutatableFactory[S, PS]{}.Create()
+		settings.SortKeySettings.EmptyValues = empty.Mutator().GetFields()
 	}
 }

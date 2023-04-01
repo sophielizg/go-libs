@@ -1,11 +1,18 @@
 package datastore
 
+import "github.com/sophielizg/go-libs/datastore/mutator"
+
 // A simple key-value table
-type HashTable[V any, PV DataRow[V], H any, PH HashKey[H]] struct {
+type HashTable[V any, PV mutator.Mutatable[V], H any, PH mutator.Mutatable[H]] struct {
 	Backend        HashTableBackendOps
 	Settings       *TableSettings
-	DataRowFactory DataRowFactory[V, PV]
-	HashKeyFactory DataRowFactory[H, PH]
+	DataRowFactory mutator.MutatableFactory[V, PV]
+	HashKeyFactory mutator.MutatableFactory[H, PH]
+}
+
+func (t *HashTable[V, PV, H, PH]) Init() {
+	t.Settings.ApplyOption(WithDataRow[V, PV]())
+	t.Settings.ApplyOption(WithHashKey[H, PH]())
 }
 
 func (t *HashTable[V, PV, H, PH]) GetSettings() *TableSettings {
@@ -16,7 +23,7 @@ func (t *HashTable[V, PV, H, PH]) SetBackend(tableBackend HashTableBackendOps) {
 	t.Backend = tableBackend
 }
 
-type HashTableScan[V any, PV DataRow[V], H any, PH HashKey[H]] struct {
+type HashTableScan[V any, PV mutator.Mutatable[V], H any, PH mutator.Mutatable[H]] struct {
 	DataRow PV
 	HashKey PH
 }
@@ -97,4 +104,21 @@ func (t *HashTable[V, PV, H, PH]) UpdateMultiple(hashKeys []PH, data []PV) error
 // Deletes values with the specified hash keys
 func (t *HashTable[V, PV, H, PH]) Delete(hashKeys ...PH) error {
 	return t.Backend.DeleteMultiple(t.HashKeyFactory.CreateFieldValuesList(hashKeys))
+}
+
+func (t *HashTable[V, PV, H, PH]) TransferTo(newTable *HashTable[V, PV, H, PH], batchSize int) error {
+	dataChan, errorChan := t.Scan(batchSize)
+
+	return transfer(batchSize, dataChan, errorChan, func(buf []*HashTableScan[V, PV, H, PH]) error {
+		dataRows := make([]PV, len(buf))
+		hashKeys := make([]PH, len(buf))
+
+		for i, val := range buf {
+			dataRows[i] = val.DataRow
+			hashKeys[i] = val.HashKey
+		}
+
+		_, err := newTable.AddMultiple(hashKeys, dataRows)
+		return err
+	})
 }

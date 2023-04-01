@@ -1,10 +1,12 @@
 package datastore
 
+import "github.com/sophielizg/go-libs/datastore/mutator"
+
 // A table to which data can be appended
-type AppendTable[V any, PV DataRow[V]] struct {
+type AppendTable[V any, PV mutator.Mutatable[V]] struct {
 	Backend        AppendTableBackendOps
 	Settings       *TableSettings
-	DataRowFactory DataRowFactory[V, PV]
+	DataRowFactory mutator.MutatableFactory[V, PV]
 }
 
 func (t *AppendTable[V, PV]) Init() {
@@ -30,4 +32,12 @@ func (t *AppendTable[V, PV]) Scan(batchSize int) (chan PV, chan error) {
 // Adds data to the table
 func (t *AppendTable[V, PV]) Add(data ...PV) error {
 	return t.Backend.AddMultiple(t.DataRowFactory.CreateFieldValuesList(data))
+}
+
+func (t *AppendTable[V, PV]) TransferTo(newTable *AppendTable[V, PV], batchSize int) error {
+	dataChan, errorChan := t.Scan(batchSize)
+
+	return transfer(batchSize, dataChan, errorChan, func(buf []PV) error {
+		return newTable.Add(buf...)
+	})
 }
