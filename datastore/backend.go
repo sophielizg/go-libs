@@ -1,62 +1,58 @@
 package datastore
 
-// TODO: revisit some of this and other naming (and filenames)
-type Backend[C Connection] struct {
-	Conn C
+import "github.com/sophielizg/go-libs/datastore/mutator"
+
+type TableBackend[C Connection] interface {
+	// Configuration
+	SetSettings(settings *TableSettings)
+	SetConnection(conn C)
+
+	// Table
+	Register() error
+	Drop() error
 }
 
-func (b *Backend[C]) RegisterTables(registerFuncs ...func(b *Backend[C]) error) error {
-	for _, register := range registerFuncs {
-		if err := register(b); err != nil {
-			return err
-		}
-	}
-
-	return nil
+type AppendTableBackendOps interface {
+	// Data operations
+	Scan(batchSize int) (chan *ScanFields, chan error)
+	AddMultiple(data []mutator.MappedFieldValues) error
 }
 
-func NewBackend[C Connection](options ...func(*Backend[C])) *Backend[C] {
-	backend := &Backend[C]{}
-
-	for _, option := range options {
-		option(backend)
-	}
-
-	return backend
+type AppendTableBackend[C Connection] interface {
+	TableBackend[C]
+	AppendTableBackendOps
 }
 
-func WithConnection[C Connection](conn C) func(*Backend[C]) {
-	return func(b *Backend[C]) {
-		b.Conn = conn
-	}
+type HashTableBackendOps interface {
+	// Data operations
+	Scan(batchSize int) (chan *ScanFields, chan error)
+
+	GetMultiple(hashKeys []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error)
+	AddMultiple(hashKeys []mutator.MappedFieldValues, data []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error)
+	UpdateMultiple(hashKeys []mutator.MappedFieldValues, data []mutator.MappedFieldValues) error
+	DeleteMultiple(hashKeys []mutator.MappedFieldValues) error
 }
 
-func RegisterAppendTable[C Connection, TB AppendTableBackend[C], T Table[AppendTableBackendOps]](table T, tableBackend TB) func(*Backend[C]) error {
-	return func(b *Backend[C]) error {
-		table.SetBackend(tableBackend)
-		table.Init()
-		tableBackend.SetConnection(b.Conn)
-		tableBackend.SetSettings(table.GetSettings())
-		return tableBackend.Register()
-	}
+type HashTableBackend[C Connection] interface {
+	TableBackend[C]
+	HashTableBackendOps
 }
 
-func RegisterHashTable[C Connection, TB HashTableBackend[C], T Table[HashTableBackendOps]](table T, tableBackend TB) func(*Backend[C]) error {
-	return func(b *Backend[C]) error {
-		table.SetBackend(tableBackend)
-		table.Init()
-		tableBackend.SetConnection(b.Conn)
-		tableBackend.SetSettings(table.GetSettings())
-		return tableBackend.Register()
-	}
+type SortTableBackendOps interface {
+	// Data operations
+	Scan(batchSize int) (chan *ScanFields, chan error)
+
+	GetMultiple(hashKeys []mutator.MappedFieldValues, sortKeys []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error)
+	AddMultiple(hashKeys []mutator.MappedFieldValues, sortKeys []mutator.MappedFieldValues, data []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, []mutator.MappedFieldValues, error)
+	UpdateMultiple(hashKeys []mutator.MappedFieldValues, sortKeys []mutator.MappedFieldValues, data []mutator.MappedFieldValues) error
+	DeleteMultiple(hashKeys []mutator.MappedFieldValues, sortKeys []mutator.MappedFieldValues) error
+
+	GetWithSortComparator(hashKey mutator.MappedFieldValues, comparator mutator.MappedFieldValues) ([]mutator.MappedFieldValues, []mutator.MappedFieldValues, error)
+	UpdateWithSortComparator(hashKey mutator.MappedFieldValues, comparator mutator.MappedFieldValues, data mutator.MappedFieldValues) error
+	DeleteWithSortComparator(hashKey mutator.MappedFieldValues, comparator mutator.MappedFieldValues) error
 }
 
-func RegisterSortTable[C Connection, TB SortTableBackend[C], T Table[SortTableBackendOps]](table T, tableBackend TB) func(*Backend[C]) error {
-	return func(b *Backend[C]) error {
-		table.SetBackend(tableBackend)
-		table.Init()
-		tableBackend.SetConnection(b.Conn)
-		tableBackend.SetSettings(table.GetSettings())
-		return tableBackend.Register()
-	}
+type SortTableBackend[C Connection] interface {
+	TableBackend[C]
+	SortTableBackendOps
 }

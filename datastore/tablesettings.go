@@ -5,12 +5,6 @@ import (
 	"github.com/sophielizg/go-libs/datastore/mutator"
 )
 
-type Table[B any] interface {
-	Init()
-	GetSettings() *TableSettings
-	SetBackend(tableBackend B)
-}
-
 type TableSettings struct {
 	Name            string
 	DataRowSettings *fields.DataRowSettings
