@@ -2,6 +2,10 @@ package testutils
 
 import "testing"
 
+func Case(t *testing.T, name string) {
+	t.Log("starting test case: " + name)
+}
+
 type TestCase[I any, O any] struct {
 	Name     string
 	Input    I
@@ -16,7 +20,7 @@ type Tests[I any, O any] struct {
 func (ts *Tests[I, O]) Run(t *testing.T) {
 	t.Helper()
 	for _, testCase := range ts.Cases {
-		t.Log("starting test case: " + testCase.Name)
+		Case(t, testCase.Name)
 		ts.Func(testCase.Input, testCase.Expected)
 	}
 }

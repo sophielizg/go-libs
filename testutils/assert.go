@@ -1,6 +1,7 @@
 package testutils
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -12,7 +13,15 @@ func Assert(t *testing.T, condition bool, msg string) {
 	}
 }
 
-func Equals[T comparable](t *testing.T, expected, actual T) {
+func AssertTrue(t *testing.T, condition bool) {
+	t.Helper()
+
+	if !condition {
+		t.Errorf("want: %v; got: %v", true, condition)
+	}
+}
+
+func AssertEquals[T comparable](t *testing.T, expected, actual T) {
 	t.Helper()
 
 	if expected != actual {
@@ -20,18 +29,17 @@ func Equals[T comparable](t *testing.T, expected, actual T) {
 	}
 }
 
-func ErrorEquals(t *testing.T, expected, actual error) {
+func AssertErrorEquals(t *testing.T, expected, actual error) {
 	t.Helper()
 
-	// TODO: update this to use errors.Is
-	if expected != nil {
-		Error(t, actual)
-	} else {
-		Ok(t, actual)
+	if expected == nil {
+		AssertOk(t, actual)
+	} else if actual == nil || !errors.Is(actual, expected) {
+		t.Errorf("want: %v; got: %v", expected, actual)
 	}
 }
 
-func Ok(t *testing.T, err error) {
+func AssertOk(t *testing.T, err error) {
 	t.Helper()
 
 	if err != nil {
@@ -39,7 +47,7 @@ func Ok(t *testing.T, err error) {
 	}
 }
 
-func Error(t *testing.T, err error) {
+func AssertError(t *testing.T, err error) {
 	t.Helper()
 
 	if err == nil {

@@ -6,9 +6,12 @@ import (
 
 var SetFieldTypeError = errors.New("unable to set field: invalid type")
 
+type gettersMap = map[string]func() any
+type settersMap = map[string]func(any) error
+
 type FieldMutator struct {
-	fieldGetters map[string]func() any
-	fieldSetters map[string]func(any) error
+	fieldGetters gettersMap
+	fieldSetters settersMap
 }
 
 func (m *FieldMutator) GetField(key string) any {
@@ -31,7 +34,7 @@ func (m *FieldMutator) SetField(key string, value any) error {
 
 func (m *FieldMutator) SetFields(fields MappedFieldValues) error {
 	for key, value := range fields {
-		if err := m.fieldSetters[key](value); err != nil {
+		if err := m.SetField(key, value); err != nil {
 			return err
 		}
 	}
@@ -40,7 +43,10 @@ func (m *FieldMutator) SetFields(fields MappedFieldValues) error {
 }
 
 func NewFieldMutator(options ...func(*FieldMutator)) *FieldMutator {
-	builder := &FieldMutator{}
+	builder := &FieldMutator{
+		fieldGetters: gettersMap{},
+		fieldSetters: settersMap{},
+	}
 
 	for _, option := range options {
 		option(builder)
