@@ -5,236 +5,131 @@ import (
 	"testing"
 
 	"github.com/sophielizg/go-libs/datastore"
+	"github.com/sophielizg/go-libs/datastore/examples/logtable"
+	"github.com/sophielizg/go-libs/datastore/fields"
+	"github.com/sophielizg/go-libs/datastore/mutator"
 	"github.com/sophielizg/go-libs/testutils"
 )
 
-// TODO: redo tests
-
-type mockAppendTableBackend struct {
-	errorRval          error
-	errorChanRval      chan error
-	scanFieldsChanRval chan *datastore.AppendTableScanFields
+type MockAppendTableBackendOps struct {
+	ErrorRval    error
+	DataRowsRval []mutator.MappedFieldValues
 }
 
-func (b *mockAppendTableBackend) ValidateSchema(schema *datastore.AppendTableSchema) error {
-	return b.errorRval
+func (b *MockAppendTableBackendOps) Scan(batchSize int) (chan *datastore.ScanFields, chan error) {
+	dataChan := make(chan *datastore.ScanFields, batchSize)
+	errorChan := make(chan error, 1)
+
+	go func() {
+		defer close(dataChan)
+		defer close(errorChan)
+
+		for _, dataRow := range b.DataRowsRval {
+			dataChan <- &datastore.ScanFields{
+				DataRow: dataRow,
+			}
+		}
+
+		if b.ErrorRval != nil {
+			errorChan <- b.ErrorRval
+		}
+	}()
+
+	return dataChan, errorChan
 }
 
-func (b *mockAppendTableBackend) CreateOrUpdateSchema(schema *datastore.AppendTableSchema) error {
-	return b.errorRval
+func (b *MockAppendTableBackendOps) AddMultiple(data []mutator.MappedFieldValues) error {
+	return b.ErrorRval
 }
 
-func (b *mockAppendTableBackend) Scan(schema *datastore.AppendTableSchema, batchSize int) (chan *datastore.AppendTableScanFields, chan error) {
-	return b.scanFieldsChanRval, b.errorChanRval
+func (b *MockAppendTableBackendOps) DeleteAll(batchSize int) error {
+	return b.ErrorRval
 }
 
-func (b *mockAppendTableBackend) AppendMultiple(schema *datastore.AppendTableSchema, data []datastore.DataRow) error {
-	return b.errorRval
-}
+func TestSettings(t *testing.T) {
+	table := logtable.NewLogTable()
+	table.Init()
+	actual := table.GetSettings()
 
-func (b *mockAppendTableBackend) DeleteAll(schema *datastore.AppendTableSchema, batchSize int) error {
-	return b.errorRval
-}
+	testutils.AssertEquals(t, "Log", actual.Name)
+	testutils.AssertEquals(t, &logtable.LogDataRowSettings, actual.DataRowSettings)
 
-type testDataRow struct {
-	val string
-}
+	actualMessage, ok := actual.DataRowSettings.EmptyValues["Message"].(fields.String)
+	testutils.AssertTrue(t, ok)
+	testutils.AssertEquals(t, "", actualMessage)
 
-func (d *testDataRow) GetFields() datastore.DataRowFields {
-	return datastore.DataRowFields{
-		"val": d.val,
-	}
-}
+	actualSource, ok := actual.DataRowSettings.EmptyValues["Source"].(fields.String)
+	testutils.AssertTrue(t, ok)
+	testutils.AssertEquals(t, "", actualSource)
 
-type testDataRowFactory struct{}
+	actualLevel, ok := actual.DataRowSettings.EmptyValues["Level"].(fields.String)
+	testutils.AssertTrue(t, ok)
+	testutils.AssertEquals(t, "", actualLevel)
 
-func (f *testDataRowFactory) CreateDefault() *testDataRow {
-	return nil
-}
-
-func (f *testDataRowFactory) CreateFromFields(fields datastore.DataRowFields) (*testDataRow, error) {
-	return &testDataRow{
-		val: fields["val"].(string),
-	}, nil
-}
-
-func (f *testDataRowFactory) GetFieldTypes() datastore.DataRowFieldTypes {
-	return datastore.DataRowFieldTypes{
-		"val": &datastore.StringField{NumChars: 64},
-	}
-}
-
-func testTable(backend datastore.AppendTableBackend) datastore.AppendTable[*testDataRow] {
-	return datastore.AppendTable[*testDataRow]{
-		Name:           "Test",
-		DataRowFactory: &testDataRowFactory{},
-		Backend:        backend,
-	}
-}
-
-func TestValidateSchema(t *testing.T) {
-	tests := testutils.Tests[error, error]{
-		Cases: []testutils.TestCase[error, error]{
-			{
-				Name:     "returns ok if no error from backend",
-				Input:    nil,
-				Expected: nil,
-			},
-			{
-				Name:     "returns error if one comes from backend",
-				Input:    errors.New("error"),
-				Expected: errors.New("error"),
-			},
-		},
-		Func: func(errorRval error, expected error) {
-			table := testTable(&mockAppendTableBackend{
-				errorRval: errorRval,
-			})
-			testutils.ErrorEquals(t, expected, table.ValidateSchema())
-		},
-	}
-
-	tests.Run(t)
-}
-
-func TestCreateOrUpdateSchema(t *testing.T) {
-	tests := testutils.Tests[error, error]{
-		Cases: []testutils.TestCase[error, error]{
-			{
-				Name:     "returns ok if no error from backend",
-				Input:    nil,
-				Expected: nil,
-			},
-			{
-				Name:     "returns error if one comes from backend",
-				Input:    errors.New("error"),
-				Expected: errors.New("error"),
-			},
-		},
-		Func: func(errorRval error, expected error) {
-			table := testTable(&mockAppendTableBackend{
-				errorRval: errorRval,
-			})
-			testutils.ErrorEquals(t, expected, table.CreateOrUpdateSchema())
-		},
-	}
-
-	tests.Run(t)
+	actualCreatedTime, ok := actual.DataRowSettings.EmptyValues["CreatedTime"].(fields.Time)
+	testutils.AssertTrue(t, ok)
+	testutils.AssertTrue(t, fields.Time.IsZero(actualCreatedTime))
 }
 
 func TestScan(t *testing.T) {
-	type scanInVals struct {
-		errors     []error
-		scanFields []datastore.AppendTableScanFields
-	}
-
 	type scanExpectedVals struct {
 		errors     []error
-		scanFields []datastore.DataRowScan[*testDataRow]
+		scanFields []logtable.LogDataRow
 	}
 
-	tests := testutils.Tests[*scanInVals, *scanExpectedVals]{
-		Cases: []testutils.TestCase[*scanInVals, *scanExpectedVals]{
+	mockError := errors.New("test")
+
+	tests := testutils.Tests[*MockAppendTableBackendOps, *scanExpectedVals]{
+		Cases: []testutils.TestCase[*MockAppendTableBackendOps, *scanExpectedVals]{
 			{
 				Name: "properly formats good values",
-				Input: &scanInVals{
-					scanFields: []datastore.AppendTableScanFields{
-						{
-							DataRow: datastore.DataRowFields{
-								"val": "test1",
-							},
-						},
-						{
-							DataRow: datastore.DataRowFields{
-								"val": "test2",
-							},
-						},
+				Input: &MockAppendTableBackendOps{
+					ErrorRval: nil,
+					DataRowsRval: []mutator.MappedFieldValues{
+						{"Message": "test1"},
+						{"Message": "test2"},
 					},
 				},
 				Expected: &scanExpectedVals{
-					scanFields: []datastore.DataRowScan[*testDataRow]{
-						{
-							DataRow: &testDataRow{
-								val: "test1",
-							},
-						},
-						{
-							DataRow: &testDataRow{
-								val: "test2",
-							},
-						},
+					scanFields: []logtable.LogDataRow{
+						{Message: "test1"},
+						{Message: "test2"},
 					},
 				},
 			},
 			{
 				Name: "returns error for mismatched types",
-				Input: &scanInVals{
-					scanFields: []datastore.AppendTableScanFields{
-						{
-							DataRow: datastore.DataRowFields{
-								"val": 0,
-							},
-						},
+				Input: &MockAppendTableBackendOps{
+					ErrorRval: nil,
+					DataRowsRval: []mutator.MappedFieldValues{
+						{"Message": 0},
 					},
 				},
 				Expected: &scanExpectedVals{
-					errors: []error{
-						errors.New("error"),
-					},
+					errors: []error{mutator.SetFieldTypeError},
 				},
 			},
 			{
 				Name: "handles error and result input",
-				Input: &scanInVals{
-					scanFields: []datastore.AppendTableScanFields{
-						{
-							DataRow: datastore.DataRowFields{
-								"val": "test",
-							},
-						},
-					},
-					errors: []error{
-						errors.New("error"),
+				Input: &MockAppendTableBackendOps{
+					ErrorRval: mockError,
+					DataRowsRval: []mutator.MappedFieldValues{
+						{"Message": "test"},
 					},
 				},
 				Expected: &scanExpectedVals{
-					scanFields: []datastore.DataRowScan[*testDataRow]{
-						{
-							DataRow: &testDataRow{
-								val: "test",
-							},
-						},
+					scanFields: []logtable.LogDataRow{
+						{Message: "test"},
 					},
-					errors: []error{
-						errors.New("error"),
-					},
+					errors: []error{mockError},
 				},
 			},
 		},
-		Func: func(inVals *scanInVals, expected *scanExpectedVals) {
-			batchSize := 10
+		Func: func(mockBackend *MockAppendTableBackendOps, expected *scanExpectedVals) {
+			table := logtable.NewLogTable()
+			table.SetBackend(mockBackend)
 
-			scanFieldsChan := make(chan *datastore.AppendTableScanFields, batchSize)
-			errorChan := make(chan error, batchSize)
-
-			for _, scanFields := range inVals.scanFields {
-				closure := scanFields
-				scanFieldsChan <- &closure
-			}
-
-			for _, err := range inVals.errors {
-				errorChan <- err
-			}
-
-			close(scanFieldsChan)
-			close(errorChan)
-
-			table := testTable(&mockAppendTableBackend{
-				scanFieldsChanRval: scanFieldsChan,
-				errorChanRval:      errorChan,
-			})
-
-			actualScanFieldsChan, actualErrorChan := table.Scan(batchSize)
+			actualScanFieldsChan, actualErrorChan := table.Scan(10)
 
 			for _, expectedScanFields := range expected.scanFields {
 				actualScanFields, more := <-actualScanFieldsChan
@@ -242,7 +137,7 @@ func TestScan(t *testing.T) {
 					t.Errorf("actualScanFieldsChan ended prematurely")
 				}
 
-				testutils.Equals(t, expectedScanFields.DataRow.val, actualScanFields.DataRow.val)
+				testutils.AssertEquals(t, expectedScanFields.Message, actualScanFields.Message)
 			}
 
 			_, more := <-actualScanFieldsChan
@@ -256,7 +151,7 @@ func TestScan(t *testing.T) {
 					t.Errorf("actualErrorChan ended prematurely")
 				}
 
-				testutils.ErrorEquals(t, expectedError, actualError)
+				testutils.AssertErrorEquals(t, expectedError, actualError)
 			}
 
 			_, more = <-actualErrorChan

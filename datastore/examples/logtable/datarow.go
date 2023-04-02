@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	messageKey     = "MessageKey"
+	messageKey     = "Message"
 	sourceKey      = "Source"
 	levelKey       = "Level"
 	createdTimeKey = "CreatedTime"

@@ -1,6 +1,8 @@
 package datastore
 
-import "github.com/sophielizg/go-libs/datastore/mutator"
+import (
+	"github.com/sophielizg/go-libs/datastore/mutator"
+)
 
 // A table to which data can be appended
 type AppendTable[V any, PV mutator.Mutatable[V]] struct {
