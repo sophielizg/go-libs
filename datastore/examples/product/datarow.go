@@ -12,7 +12,7 @@ const (
 	lastUpdatedKey = "LastUpdated"
 )
 
-type ProductDataRow struct {
+type DataRow struct {
 	Department   fields.String
 	Price        fields.Float
 	Quantity     fields.Int
@@ -20,7 +20,7 @@ type ProductDataRow struct {
 	fieldMutator *mutator.FieldMutator
 }
 
-func (v *ProductDataRow) Mutator() *mutator.FieldMutator {
+func (v *DataRow) Mutator() *mutator.FieldMutator {
 	if v.fieldMutator == nil {
 		v.fieldMutator = mutator.NewFieldMutator(
 			mutator.WithAddress(departmentKey, &v.Department),
@@ -33,7 +33,7 @@ func (v *ProductDataRow) Mutator() *mutator.FieldMutator {
 	return v.fieldMutator
 }
 
-var ProductDataRowSettings = fields.DataRowSettings{
+var DataRowSettings = fields.DataRowSettings{
 	FieldSettings: fields.NewFieldSettings(
 		fields.WithNumBytes(departmentKey, 63),
 	),

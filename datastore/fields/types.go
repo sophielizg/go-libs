@@ -22,13 +22,13 @@ type BigUInt = uint64
 type NullBigUInt = *uint64
 
 type FloatField interface {
-	Float | NullFloat | BigFloat | NullBigFloat
+	SmallFloat | NullSmallFloat | Float | NullFloat
 }
 
-type Float = float32
-type NullFloat = *float32
-type BigFloat = float64
-type NullBigFloat = *float64
+type SmallFloat = float32
+type NullSmallFloat = *float32
+type Float = float64
+type NullFloat = *float64
 
 type StringField interface {
 	String | NullString

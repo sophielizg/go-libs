@@ -10,13 +10,13 @@ const (
 	nameKey  = "Name"
 )
 
-type ProductHashKey struct {
+type HashKey struct {
 	Brand        fields.String
 	Name         fields.String
 	fieldMutator *mutator.FieldMutator
 }
 
-func (v *ProductHashKey) Mutator() *mutator.FieldMutator {
+func (v *HashKey) Mutator() *mutator.FieldMutator {
 	if v.fieldMutator == nil {
 		v.fieldMutator = mutator.NewFieldMutator(
 			mutator.WithAddress(brandKey, &v.Brand),
@@ -27,7 +27,7 @@ func (v *ProductHashKey) Mutator() *mutator.FieldMutator {
 	return v.fieldMutator
 }
 
-var ProductHashKeySettings = fields.DataRowSettings{
+var HashKeySettings = fields.DataRowSettings{
 	FieldSettings: fields.NewFieldSettings(
 		fields.WithNumBytes(brandKey, 63),
 		fields.WithNumBytes(nameKey, 255),

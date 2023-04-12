@@ -44,7 +44,7 @@ func (b *MockAppendTableBackendOps) AddMultiple(data []mutator.MappedFieldValues
 	return b.ErrorRval
 }
 
-func TestSettings(t *testing.T) {
+func TestAppendTableSettings(t *testing.T) {
 	table := logtable.NewLogTable()
 	table.Init()
 	actual := table.GetSettings()
@@ -69,7 +69,7 @@ func TestSettings(t *testing.T) {
 	testutils.AssertTrue(t, fields.Time.IsZero(actualCreatedTime))
 }
 
-func TestScan(t *testing.T) {
+func TestAppendTableScan(t *testing.T) {
 	type scanInputVals struct {
 		Error    error
 		DataRows []mutator.MappedFieldValues
@@ -171,7 +171,7 @@ func TestScan(t *testing.T) {
 	tests.Run(t)
 }
 
-func TestAdd(t *testing.T) {
+func TestAppendTableAdd(t *testing.T) {
 	type addInputVals struct {
 		Error    error
 		DataRows []*logtable.LogDataRow
@@ -239,7 +239,7 @@ func TestAdd(t *testing.T) {
 	tests.Run(t)
 }
 
-func TestTransferTo(t *testing.T) {
+func TestAppendTableTransferTo(t *testing.T) {
 	type transferInputVals struct {
 		Error    error
 		DataRows []mutator.MappedFieldValues

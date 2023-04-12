@@ -2,14 +2,16 @@ package product
 
 import "github.com/sophielizg/go-libs/datastore"
 
-type ProductTable = datastore.HashTable[ProductDataRow, *ProductDataRow, ProductHashKey, *ProductHashKey]
+type Table = datastore.HashTable[DataRow, *DataRow, HashKey, *HashKey]
 
-func NewProductTable() *ProductTable {
-	return &ProductTable{
+type TableScan = datastore.HashTableScan[DataRow, *DataRow, HashKey, *HashKey]
+
+func NewTable() *Table {
+	return &Table{
 		Settings: datastore.NewTableSettings(
 			datastore.WithTableName("Product"),
-			datastore.WithDataRowSettings(&ProductDataRowSettings),
-			datastore.WithHashKeySettings(&ProductHashKeySettings),
+			datastore.WithDataRowSettings(&DataRowSettings),
+			datastore.WithHashKeySettings(&HashKeySettings),
 		),
 	}
 }
