@@ -56,3 +56,24 @@ type SortTableBackend[C Connection] interface {
 	TableBackend[C]
 	SortTableBackendOps
 }
+
+type QueueBackendOps interface {
+	// Data operations
+	Size() (int, error)
+	Push(messages []mutator.MappedFieldValues) error
+	Pop() (string, mutator.MappedFieldValues, error)
+	AckSuccess(messageId string) error
+	AckFailure(messageId string) error
+}
+
+type QueueBackend[C Connection] interface {
+	TableBackend[C]
+	QueueBackendOps
+}
+
+type TopicBackendOps interface {
+	// Data operations
+	Publish(messages []mutator.MappedFieldValues) error
+	Subscribe(subscriptionId string) (QueueBackendOps, string, error)
+	Unsubscribe(subscriptionId string) error
+}
