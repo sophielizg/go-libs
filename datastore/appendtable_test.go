@@ -11,6 +11,62 @@ import (
 	"github.com/sophielizg/go-libs/testutils"
 )
 
+// HELPERS
+
+func AssertLogDataRowEquals(t *testing.T, expected, actual *logtable.LogDataRow) {
+	t.Helper()
+	testutils.AssertEquals(t, expected.Message, actual.Message)
+	testutils.AssertEquals(t, expected.Source, actual.Source)
+	testutils.AssertEquals(t, expected.Level, actual.Level)
+	testutils.AssertEquals(t, expected.CreatedTime, actual.CreatedTime)
+}
+
+func AssertLogDataRowFieldsEqualOrDefault(t *testing.T, expected, actual mutator.MappedFieldValues) {
+	t.Helper()
+
+	expectedMessageVal, expectedOk := expected[logtable.MessageKey].(fields.String)
+	actualMessageVal, ok := actual[logtable.MessageKey].(fields.String)
+	testutils.AssertTrue(t, ok)
+	if expectedOk {
+		testutils.AssertEquals(t, expectedMessageVal, actualMessageVal)
+	} else {
+		// Check for default value
+		testutils.AssertEquals(t, "", actualMessageVal)
+	}
+
+	expectedSourceVal, expectedOk := expected[logtable.SourceKey].(fields.String)
+	actualSourceVal, ok := actual[logtable.SourceKey].(fields.String)
+	testutils.AssertTrue(t, ok)
+	if expectedOk {
+		testutils.AssertEquals(t, expectedSourceVal, actualSourceVal)
+	} else {
+		// Check for default value
+		testutils.AssertEquals(t, "", actualSourceVal)
+	}
+
+	expectedLevelVal, expectedOk := expected[logtable.LevelKey].(fields.String)
+	actualLevelVal, ok := actual[logtable.LevelKey].(fields.String)
+	testutils.AssertTrue(t, ok)
+	if expectedOk {
+		testutils.AssertEquals(t, expectedLevelVal, actualLevelVal)
+	} else {
+		// Check for default value
+		testutils.AssertEquals(t, "", actualLevelVal)
+	}
+
+	expectedCreatedTimeVal, expectedOk := expected[logtable.CreatedTimeKey].(fields.Time)
+	actualCreatedTimeVal, ok := actual[logtable.CreatedTimeKey].(fields.Time)
+	testutils.AssertTrue(t, ok)
+	if expectedOk {
+		testutils.AssertEquals(t, expectedCreatedTimeVal, actualCreatedTimeVal)
+	} else {
+		// Check for default value
+		testutils.AssertEquals(t, fields.Time{}, actualCreatedTimeVal)
+	}
+}
+
+// MOCKS
+
 type MockAppendTableBackendOps struct {
 	ErrorRval     error
 	DataRowsRval  []mutator.MappedFieldValues
@@ -44,6 +100,8 @@ func (b *MockAppendTableBackendOps) AddMultiple(data []mutator.MappedFieldValues
 	return b.ErrorRval
 }
 
+// TESTS
+
 func TestAppendTableSettings(t *testing.T) {
 	table := logtable.NewLogTable()
 	table.Init()
@@ -52,21 +110,8 @@ func TestAppendTableSettings(t *testing.T) {
 	testutils.AssertEquals(t, "Log", actual.Name)
 	testutils.AssertEquals(t, &logtable.LogDataRowSettings, actual.DataRowSettings)
 
-	actualMessage, ok := actual.DataRowSettings.EmptyValues["Message"].(fields.String)
-	testutils.AssertTrue(t, ok)
-	testutils.AssertEquals(t, "", actualMessage)
-
-	actualSource, ok := actual.DataRowSettings.EmptyValues["Source"].(fields.String)
-	testutils.AssertTrue(t, ok)
-	testutils.AssertEquals(t, "", actualSource)
-
-	actualLevel, ok := actual.DataRowSettings.EmptyValues["Level"].(fields.String)
-	testutils.AssertTrue(t, ok)
-	testutils.AssertEquals(t, "", actualLevel)
-
-	actualCreatedTime, ok := actual.DataRowSettings.EmptyValues["CreatedTime"].(fields.Time)
-	testutils.AssertTrue(t, ok)
-	testutils.AssertTrue(t, fields.Time.IsZero(actualCreatedTime))
+	// Check that defaults are generated
+	AssertLogDataRowFieldsEqualOrDefault(t, mutator.MappedFieldValues{}, actual.DataRowSettings.EmptyValues)
 }
 
 func TestAppendTableScan(t *testing.T) {
@@ -77,7 +122,7 @@ func TestAppendTableScan(t *testing.T) {
 
 	type scanExpectedVals struct {
 		Errors     []error
-		ScanFields []logtable.LogDataRow
+		ScanFields []*logtable.LogDataRow
 	}
 
 	mockError := errors.New("test")
@@ -89,12 +134,12 @@ func TestAppendTableScan(t *testing.T) {
 				Input: &scanInputVals{
 					Error: nil,
 					DataRows: []mutator.MappedFieldValues{
-						{"Message": "test1"},
-						{"Message": "test2"},
+						{logtable.MessageKey: "test1"},
+						{logtable.MessageKey: "test2"},
 					},
 				},
 				Expected: &scanExpectedVals{
-					ScanFields: []logtable.LogDataRow{
+					ScanFields: []*logtable.LogDataRow{
 						{Message: "test1"},
 						{Message: "test2"},
 					},
@@ -105,7 +150,7 @@ func TestAppendTableScan(t *testing.T) {
 				Input: &scanInputVals{
 					Error: nil,
 					DataRows: []mutator.MappedFieldValues{
-						{"Message": 0},
+						{logtable.MessageKey: 0},
 					},
 				},
 				Expected: &scanExpectedVals{
@@ -117,11 +162,11 @@ func TestAppendTableScan(t *testing.T) {
 				Input: &scanInputVals{
 					Error: mockError,
 					DataRows: []mutator.MappedFieldValues{
-						{"Message": "test"},
+						{logtable.MessageKey: "test"},
 					},
 				},
 				Expected: &scanExpectedVals{
-					ScanFields: []logtable.LogDataRow{
+					ScanFields: []*logtable.LogDataRow{
 						{Message: "test"},
 					},
 					Errors: []error{mockError},
@@ -144,7 +189,7 @@ func TestAppendTableScan(t *testing.T) {
 					t.Errorf("actualScanFieldsChan ended prematurely")
 				}
 
-				testutils.AssertEquals(t, expectedScanFields.Message, actualScanFields.Message)
+				AssertLogDataRowEquals(t, expectedScanFields, actualScanFields)
 			}
 
 			_, more := <-actualScanFieldsChan
@@ -198,8 +243,8 @@ func TestAppendTableAdd(t *testing.T) {
 				Expected: &addExpectedVals{
 					Error: nil,
 					DataRows: []mutator.MappedFieldValues{
-						{"Message": "test1"},
-						{"Message": "test2"},
+						{logtable.MessageKey: "test1"},
+						{logtable.MessageKey: "test2"},
 					},
 				},
 			},
@@ -227,11 +272,7 @@ func TestAppendTableAdd(t *testing.T) {
 
 			testutils.AssertEquals(t, len(expected.DataRows), len(mockBackend.DataRowsInput))
 			for i := range expected.DataRows {
-				expectedVal, ok := expected.DataRows[i]["Message"].(fields.String)
-				testutils.AssertTrue(t, ok)
-				actualVal, ok := mockBackend.DataRowsInput[i]["Message"].(fields.String)
-				testutils.AssertTrue(t, ok)
-				testutils.AssertEquals(t, expectedVal, actualVal)
+				AssertLogDataRowFieldsEqualOrDefault(t, expected.DataRows[i], mockBackend.DataRowsInput[i])
 			}
 		},
 	}
@@ -258,8 +299,8 @@ func TestAppendTableTransferTo(t *testing.T) {
 				Input: &transferInputVals{
 					Error: nil,
 					DataRows: []mutator.MappedFieldValues{
-						{"Message": "test1"},
-						{"Message": "test2"},
+						{logtable.MessageKey: "test1"},
+						{logtable.MessageKey: "test2"},
 					},
 				},
 				Expected: &transferExpectedVals{
@@ -271,7 +312,7 @@ func TestAppendTableTransferTo(t *testing.T) {
 				Input: &transferInputVals{
 					Error: nil,
 					DataRows: []mutator.MappedFieldValues{
-						{"Message": 1},
+						{logtable.MessageKey: 1},
 					},
 				},
 				Expected: &transferExpectedVals{
@@ -283,7 +324,7 @@ func TestAppendTableTransferTo(t *testing.T) {
 				Input: &transferInputVals{
 					Error: mockError,
 					DataRows: []mutator.MappedFieldValues{
-						{"Message": "test"},
+						{logtable.MessageKey: "test"},
 					},
 				},
 				Expected: &transferExpectedVals{
@@ -312,11 +353,7 @@ func TestAppendTableTransferTo(t *testing.T) {
 
 			testutils.AssertEquals(t, len(input.DataRows), len(mockBackendDest.DataRowsInput))
 			for i := range input.DataRows {
-				expectedVal, ok := input.DataRows[i]["Message"].(fields.String)
-				testutils.AssertTrue(t, ok)
-				actualVal, ok := mockBackendDest.DataRowsInput[i]["Message"].(fields.String)
-				testutils.AssertTrue(t, ok)
-				testutils.AssertEquals(t, expectedVal, actualVal)
+				AssertLogDataRowFieldsEqualOrDefault(t, input.DataRows[i], mockBackendDest.DataRowsInput[i])
 			}
 		},
 	}

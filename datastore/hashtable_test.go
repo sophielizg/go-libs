@@ -11,6 +11,92 @@ import (
 	"github.com/sophielizg/go-libs/testutils"
 )
 
+// HELPERS
+
+func AssertProductDataRowEquals(t *testing.T, expected, actual *product.DataRow) {
+	t.Helper()
+	testutils.AssertEquals(t, expected.Department, actual.Department)
+	testutils.AssertEquals(t, expected.Price, actual.Price)
+	testutils.AssertEquals(t, expected.Quantity, actual.Quantity)
+	testutils.AssertEquals(t, expected.LastUpdated, actual.LastUpdated)
+}
+
+func AssertProductDataRowFieldsEqualOrDefault(t *testing.T, expected, actual mutator.MappedFieldValues) {
+	t.Helper()
+
+	expectedDepartmentVal, expectedOk := expected[product.DepartmentKey].(fields.String)
+	actualDepartmentVal, ok := actual[product.DepartmentKey].(fields.String)
+	testutils.AssertTrue(t, ok)
+	if expectedOk {
+		testutils.AssertEquals(t, expectedDepartmentVal, actualDepartmentVal)
+	} else {
+		// Check for default value
+		testutils.AssertEquals(t, "", actualDepartmentVal)
+	}
+
+	expectedPriceVal, expectedOk := expected[product.PriceKey].(fields.Float)
+	actualPriceVal, ok := actual[product.PriceKey].(fields.Float)
+	testutils.AssertTrue(t, ok)
+	if expectedOk {
+		testutils.AssertEquals(t, expectedPriceVal, actualPriceVal)
+	} else {
+		// Check for default value
+		testutils.AssertEquals(t, 0.0, actualPriceVal)
+	}
+
+	expectedQuantityVal, expectedOk := expected[product.QuantityKey].(fields.Int)
+	actualQuantityVal, ok := actual[product.QuantityKey].(fields.Int)
+	testutils.AssertTrue(t, ok)
+	if expectedOk {
+		testutils.AssertEquals(t, expectedQuantityVal, actualQuantityVal)
+	} else {
+		// Check for default value
+		testutils.AssertEquals(t, 0, actualQuantityVal)
+	}
+
+	expectedLastUpdatedVal, expectedOk := expected[product.LastUpdatedKey].(fields.Time)
+	actualLastUpdatedVal, ok := actual[product.LastUpdatedKey].(fields.Time)
+	testutils.AssertTrue(t, ok)
+	if expectedOk {
+		testutils.AssertEquals(t, expectedLastUpdatedVal, actualLastUpdatedVal)
+	} else {
+		// Check for default value
+		testutils.AssertEquals(t, fields.Time{}, actualLastUpdatedVal)
+	}
+}
+
+func AssertProductHashKeyEquals(t *testing.T, expected, actual *product.HashKey) {
+	t.Helper()
+	testutils.AssertEquals(t, expected.Brand, actual.Brand)
+	testutils.AssertEquals(t, expected.Name, actual.Name)
+}
+
+func AssertProductHashKeyFieldsEqualOrDefault(t *testing.T, expected, actual mutator.MappedFieldValues) {
+	t.Helper()
+
+	expectedBrandVal, expectedOk := expected[product.BrandKey].(fields.String)
+	actualBrandVal, ok := actual[product.BrandKey].(fields.String)
+	testutils.AssertTrue(t, ok)
+	if expectedOk {
+		testutils.AssertEquals(t, expectedBrandVal, actualBrandVal)
+	} else {
+		// Check for default value
+		testutils.AssertEquals(t, "", actualBrandVal)
+	}
+
+	expectedNameVal, expectedOk := expected[product.NameKey].(fields.String)
+	actualNameVal, ok := actual[product.NameKey].(fields.String)
+	testutils.AssertTrue(t, ok)
+	if expectedOk {
+		testutils.AssertEquals(t, expectedNameVal, actualNameVal)
+	} else {
+		// Check for default value
+		testutils.AssertEquals(t, "", actualNameVal)
+	}
+}
+
+// MOCKS
+
 type MockHashTableBackendOps struct {
 	ErrorRval     error
 	DataRowsRval  []mutator.MappedFieldValues
@@ -62,6 +148,8 @@ func (b *MockHashTableBackendOps) DeleteMultiple(hashKeys []mutator.MappedFieldV
 	return b.ErrorRval
 }
 
+// TESTS
+
 func TestHashTableSettings(t *testing.T) {
 	table := product.NewTable()
 	table.Init()
@@ -71,29 +159,9 @@ func TestHashTableSettings(t *testing.T) {
 	testutils.AssertEquals(t, &product.DataRowSettings, actual.DataRowSettings)
 	testutils.AssertEquals(t, &product.HashKeySettings, actual.HashKeySettings)
 
-	actualDepartment, ok := actual.DataRowSettings.EmptyValues["Department"].(fields.String)
-	testutils.AssertTrue(t, ok)
-	testutils.AssertEquals(t, "", actualDepartment)
-
-	actualPrice, ok := actual.DataRowSettings.EmptyValues["Price"].(fields.Float)
-	testutils.AssertTrue(t, ok)
-	testutils.AssertEquals(t, 0.0, actualPrice)
-
-	actualQuantity, ok := actual.DataRowSettings.EmptyValues["Quantity"].(fields.Int)
-	testutils.AssertTrue(t, ok)
-	testutils.AssertEquals(t, 0, actualQuantity)
-
-	actualLastUpdated, ok := actual.DataRowSettings.EmptyValues["LastUpdated"].(fields.Time)
-	testutils.AssertTrue(t, ok)
-	testutils.AssertTrue(t, fields.Time.IsZero(actualLastUpdated))
-
-	actualBrand, ok := actual.HashKeySettings.EmptyValues["Brand"].(fields.String)
-	testutils.AssertTrue(t, ok)
-	testutils.AssertEquals(t, "", actualBrand)
-
-	actualName, ok := actual.HashKeySettings.EmptyValues["Name"].(fields.String)
-	testutils.AssertTrue(t, ok)
-	testutils.AssertEquals(t, "", actualName)
+	// Check that defaults are generated
+	AssertProductDataRowFieldsEqualOrDefault(t, mutator.MappedFieldValues{}, actual.DataRowSettings.EmptyValues)
+	AssertProductHashKeyFieldsEqualOrDefault(t, mutator.MappedFieldValues{}, actual.HashKeySettings.EmptyValues)
 }
 
 func TestHashTableScan(t *testing.T) {
@@ -117,12 +185,12 @@ func TestHashTableScan(t *testing.T) {
 				Input: &scanInputVals{
 					Error: nil,
 					HashKeys: []mutator.MappedFieldValues{
-						{"Name": "test1"},
-						{"Name": "test2"},
+						{product.NameKey: "test1"},
+						{product.NameKey: "test2"},
 					},
 					DataRows: []mutator.MappedFieldValues{
-						{"Price": 9.99},
-						{"Price": 10.99},
+						{product.PriceKey: 9.99},
+						{product.PriceKey: 10.99},
 					},
 				},
 				Expected: &scanExpectedVals{
@@ -143,10 +211,10 @@ func TestHashTableScan(t *testing.T) {
 				Input: &scanInputVals{
 					Error: nil,
 					HashKeys: []mutator.MappedFieldValues{
-						{"Name": "test1"},
+						{product.NameKey: "test1"},
 					},
 					DataRows: []mutator.MappedFieldValues{
-						{"Price": 0},
+						{product.PriceKey: 0},
 					},
 				},
 				Expected: &scanExpectedVals{
@@ -158,10 +226,10 @@ func TestHashTableScan(t *testing.T) {
 				Input: &scanInputVals{
 					Error: nil,
 					HashKeys: []mutator.MappedFieldValues{
-						{"Name": 0},
+						{product.NameKey: 0},
 					},
 					DataRows: []mutator.MappedFieldValues{
-						{"Price": 9.99},
+						{product.PriceKey: 9.99},
 					},
 				},
 				Expected: &scanExpectedVals{
@@ -173,10 +241,10 @@ func TestHashTableScan(t *testing.T) {
 				Input: &scanInputVals{
 					Error: mockError,
 					HashKeys: []mutator.MappedFieldValues{
-						{"Name": "test1"},
+						{product.NameKey: "test1"},
 					},
 					DataRows: []mutator.MappedFieldValues{
-						{"Price": 9.99},
+						{product.PriceKey: 9.99},
 					},
 				},
 				Expected: &scanExpectedVals{
@@ -207,8 +275,8 @@ func TestHashTableScan(t *testing.T) {
 					t.Errorf("actualScanFieldsChan ended prematurely")
 				}
 
-				testutils.AssertEquals(t, expectedScanFields.DataRow.Price, actualScanFields.DataRow.Price)
-				testutils.AssertEquals(t, expectedScanFields.HashKey.Name, actualScanFields.HashKey.Name)
+				AssertProductDataRowEquals(t, expectedScanFields.DataRow, actualScanFields.DataRow)
+				AssertProductHashKeyEquals(t, expectedScanFields.HashKey, actualScanFields.HashKey)
 			}
 
 			_, more := <-actualScanFieldsChan
@@ -267,8 +335,8 @@ func TestHashTableAddMultiple(t *testing.T) {
 						{Price: 10.99},
 					},
 					HashKeysRval: []mutator.MappedFieldValues{
-						{"Name": "test1"},
-						{"Name": "test2"},
+						{product.NameKey: "test1"},
+						{product.NameKey: "test2"},
 					},
 				},
 				Expected: &addExpectedVals{
@@ -278,12 +346,12 @@ func TestHashTableAddMultiple(t *testing.T) {
 						{Name: "test2"},
 					},
 					HashKeysStored: []mutator.MappedFieldValues{
-						{"Name": "test1"},
-						{"Name": "test2"},
+						{product.NameKey: "test1"},
+						{product.NameKey: "test2"},
 					},
 					DataRowsStored: []mutator.MappedFieldValues{
-						{"Price": 9.99},
-						{"Price": 10.99},
+						{product.PriceKey: 9.99},
+						{product.PriceKey: 10.99},
 					},
 				},
 			},
@@ -316,25 +384,17 @@ func TestHashTableAddMultiple(t *testing.T) {
 
 			testutils.AssertEquals(t, len(expected.DataRowsStored), len(mockBackend.DataRowsInput))
 			for i := range expected.DataRowsStored {
-				expectedVal, ok := expected.DataRowsStored[i]["Price"].(fields.Float)
-				testutils.AssertTrue(t, ok)
-				actualVal, ok := mockBackend.DataRowsInput[i]["Price"].(fields.Float)
-				testutils.AssertTrue(t, ok)
-				testutils.AssertEquals(t, expectedVal, actualVal)
+				AssertProductDataRowFieldsEqualOrDefault(t, expected.DataRowsStored[i], mockBackend.DataRowsInput[i])
 			}
 
 			testutils.AssertEquals(t, len(expected.HashKeysStored), len(mockBackend.HashKeysInput))
 			for i := range expected.HashKeysStored {
-				expectedVal, ok := expected.HashKeysStored[i]["Name"].(fields.String)
-				testutils.AssertTrue(t, ok)
-				actualVal, ok := mockBackend.HashKeysInput[i]["Name"].(fields.String)
-				testutils.AssertTrue(t, ok)
-				testutils.AssertEquals(t, expectedVal, actualVal)
+				AssertProductHashKeyFieldsEqualOrDefault(t, expected.HashKeysStored[i], mockBackend.HashKeysInput[i])
 			}
 
 			testutils.AssertEquals(t, len(expected.HashKeysRval), len(actualHashKeysRval))
 			for i := range expected.HashKeysStored {
-				testutils.AssertEquals(t, expected.HashKeysRval[i].Name, expected.HashKeysRval[i].Name)
+				AssertProductHashKeyEquals(t, expected.HashKeysRval[i], actualHashKeysRval[i])
 			}
 		},
 	}

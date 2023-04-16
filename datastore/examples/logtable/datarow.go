@@ -6,10 +6,10 @@ import (
 )
 
 const (
-	messageKey     = "Message"
-	sourceKey      = "Source"
-	levelKey       = "Level"
-	createdTimeKey = "CreatedTime"
+	MessageKey     = "Message"
+	SourceKey      = "Source"
+	LevelKey       = "Level"
+	CreatedTimeKey = "CreatedTime"
 )
 
 type LogDataRow struct {
@@ -23,10 +23,10 @@ type LogDataRow struct {
 func (v *LogDataRow) Mutator() *mutator.FieldMutator {
 	if v.fieldMutator == nil {
 		v.fieldMutator = mutator.NewFieldMutator(
-			mutator.WithAddress(messageKey, &v.Message),
-			mutator.WithAddress(sourceKey, &v.Source),
-			mutator.WithAddress(levelKey, &v.Level),
-			mutator.WithAddress(createdTimeKey, &v.CreatedTime),
+			mutator.WithAddress(MessageKey, &v.Message),
+			mutator.WithAddress(SourceKey, &v.Source),
+			mutator.WithAddress(LevelKey, &v.Level),
+			mutator.WithAddress(CreatedTimeKey, &v.CreatedTime),
 		)
 	}
 
@@ -35,9 +35,9 @@ func (v *LogDataRow) Mutator() *mutator.FieldMutator {
 
 var LogDataRowSettings = fields.DataRowSettings{
 	FieldSettings: fields.NewFieldSettings(
-		fields.WithNumBytes(messageKey, 255),
-		fields.WithNumBytes(sourceKey, 63),
-		fields.WithNumBytes(levelKey, 7),
+		fields.WithNumBytes(MessageKey, 255),
+		fields.WithNumBytes(SourceKey, 63),
+		fields.WithNumBytes(LevelKey, 7),
 	),
-	FieldOrder: fields.OrderedFieldKeys{sourceKey, levelKey, createdTimeKey, messageKey},
+	FieldOrder: fields.OrderedFieldKeys{SourceKey, LevelKey, CreatedTimeKey, MessageKey},
 }

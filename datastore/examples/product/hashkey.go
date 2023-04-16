@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	brandKey = "Brand"
-	nameKey  = "Name"
+	BrandKey = "Brand"
+	NameKey  = "Name"
 )
 
 type HashKey struct {
@@ -19,8 +19,8 @@ type HashKey struct {
 func (v *HashKey) Mutator() *mutator.FieldMutator {
 	if v.fieldMutator == nil {
 		v.fieldMutator = mutator.NewFieldMutator(
-			mutator.WithAddress(brandKey, &v.Brand),
-			mutator.WithAddress(nameKey, &v.Name),
+			mutator.WithAddress(BrandKey, &v.Brand),
+			mutator.WithAddress(NameKey, &v.Name),
 		)
 	}
 
@@ -29,8 +29,8 @@ func (v *HashKey) Mutator() *mutator.FieldMutator {
 
 var HashKeySettings = fields.DataRowSettings{
 	FieldSettings: fields.NewFieldSettings(
-		fields.WithNumBytes(brandKey, 63),
-		fields.WithNumBytes(nameKey, 255),
+		fields.WithNumBytes(BrandKey, 63),
+		fields.WithNumBytes(NameKey, 255),
 	),
-	FieldOrder: fields.OrderedFieldKeys{brandKey, nameKey},
+	FieldOrder: fields.OrderedFieldKeys{BrandKey, NameKey},
 }
