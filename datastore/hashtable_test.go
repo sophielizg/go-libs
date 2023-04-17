@@ -100,7 +100,7 @@ func AssertProductHashKeyFieldsEqualOrDefault(t *testing.T, expected, actual mut
 type MockHashTableBackendOps struct {
 	ErrorRval     error
 	DataRowsRval  []mutator.MappedFieldValues
-	HashKeyRval   []mutator.MappedFieldValues
+	HashKeysRval  []mutator.MappedFieldValues
 	DataRowsInput []mutator.MappedFieldValues
 	HashKeysInput []mutator.MappedFieldValues
 }
@@ -116,7 +116,7 @@ func (b *MockHashTableBackendOps) Scan(batchSize int) (chan *datastore.ScanField
 		for i := range b.DataRowsRval {
 			dataChan <- &datastore.ScanFields{
 				DataRow: b.DataRowsRval[i],
-				HashKey: b.HashKeyRval[i],
+				HashKey: b.HashKeysRval[i],
 			}
 		}
 
@@ -135,7 +135,7 @@ func (b *MockHashTableBackendOps) GetMultiple(hashKeys []mutator.MappedFieldValu
 func (b *MockHashTableBackendOps) AddMultiple(hashKeys []mutator.MappedFieldValues, data []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error) {
 	b.DataRowsInput = data
 	b.HashKeysInput = hashKeys
-	return b.HashKeyRval, b.ErrorRval
+	return b.HashKeysRval, b.ErrorRval
 }
 
 func (b *MockHashTableBackendOps) UpdateMultiple(hashKeys []mutator.MappedFieldValues, data []mutator.MappedFieldValues) error {
@@ -262,7 +262,7 @@ func TestHashTableScan(t *testing.T) {
 			mockBackend := &MockHashTableBackendOps{
 				ErrorRval:    input.Error,
 				DataRowsRval: input.DataRows,
-				HashKeyRval:  input.HashKeys,
+				HashKeysRval: input.HashKeys,
 			}
 			table := product.NewTable()
 			table.SetBackend(mockBackend)
@@ -296,6 +296,77 @@ func TestHashTableScan(t *testing.T) {
 			_, more = <-actualErrorChan
 			if more {
 				t.Errorf("actualErrorChan longer than expected")
+			}
+		},
+	}
+
+	tests.Run(t)
+}
+
+func TestHashTableGet(t *testing.T) {
+	type getInputVals struct {
+		Error        error
+		HashKeys     []*product.HashKey
+		DataRowsRval []mutator.MappedFieldValues
+	}
+
+	type getExpectedVals struct {
+		Error    error
+		DataRows []*product.DataRow
+	}
+
+	mockError := errors.New("test")
+
+	tests := testutils.Tests[*getInputVals, *getExpectedVals]{
+		Cases: []testutils.TestCase[*getInputVals, *getExpectedVals]{
+			{
+				Name: "successfully gets",
+				Input: &getInputVals{
+					Error: nil,
+					HashKeys: []*product.HashKey{
+						{Name: "test1"},
+						{Name: "test2"},
+					},
+					DataRowsRval: []mutator.MappedFieldValues{
+						{product.PriceKey: 9.99},
+						{product.PriceKey: 10.99},
+					},
+				},
+				Expected: &getExpectedVals{
+					Error: nil,
+					DataRows: []*product.DataRow{
+						{Price: 9.99},
+						{Price: 10.99},
+					},
+				},
+			},
+			{
+				Name: "returns error",
+				Input: &getInputVals{
+					Error:        mockError,
+					HashKeys:     []*product.HashKey{},
+					DataRowsRval: []mutator.MappedFieldValues{},
+				},
+				Expected: &getExpectedVals{
+					Error:    mockError,
+					DataRows: nil,
+				},
+			},
+		},
+		Func: func(input *getInputVals, expected *getExpectedVals) {
+			mockBackend := &MockHashTableBackendOps{
+				ErrorRval:    input.Error,
+				DataRowsRval: input.DataRowsRval,
+			}
+			table := product.NewTable()
+			table.SetBackend(mockBackend)
+
+			actualDataRows, err := table.Get(input.HashKeys...)
+			testutils.AssertErrorEquals(t, expected.Error, err)
+
+			testutils.AssertEquals(t, len(expected.DataRows), len(actualDataRows))
+			for i := range expected.DataRows {
+				AssertProductDataRowEquals(t, expected.DataRows[i], actualDataRows[i])
 			}
 		},
 	}
@@ -370,11 +441,28 @@ func TestHashTableAddMultiple(t *testing.T) {
 					DataRowsStored: []mutator.MappedFieldValues{},
 				},
 			},
+			{
+				Name: "returns mismatch length error",
+				Input: &addInputVals{
+					Error:    nil,
+					DataRows: []*product.DataRow{},
+					HashKeys: []*product.HashKey{},
+					HashKeysRval: []mutator.MappedFieldValues{
+						{product.NameKey: "test1"},
+					},
+				},
+				Expected: &addExpectedVals{
+					Error:          datastore.OutputLengthMismatchError,
+					HashKeysRval:   nil,
+					HashKeysStored: []mutator.MappedFieldValues{},
+					DataRowsStored: []mutator.MappedFieldValues{},
+				},
+			},
 		},
 		Func: func(input *addInputVals, expected *addExpectedVals) {
 			mockBackend := &MockHashTableBackendOps{
-				ErrorRval:   input.Error,
-				HashKeyRval: input.HashKeysRval,
+				ErrorRval:    input.Error,
+				HashKeysRval: input.HashKeysRval,
 			}
 			table := product.NewTable()
 			table.SetBackend(mockBackend)
@@ -393,7 +481,7 @@ func TestHashTableAddMultiple(t *testing.T) {
 			}
 
 			testutils.AssertEquals(t, len(expected.HashKeysRval), len(actualHashKeysRval))
-			for i := range expected.HashKeysStored {
+			for i := range expected.HashKeysRval {
 				AssertProductHashKeyEquals(t, expected.HashKeysRval[i], actualHashKeysRval[i])
 			}
 		},
@@ -402,87 +490,185 @@ func TestHashTableAddMultiple(t *testing.T) {
 	tests.Run(t)
 }
 
-// func TestHashTableTransferTo(t *testing.T) {
-// 	type transferInputVals struct {
-// 		Error    error
-// 		DataRows []mutator.MappedFieldValues
-// 	}
+func TestHashTableUpdateMultiple(t *testing.T) {
+	type updateInputVals struct {
+		Error    error
+		HashKeys []*product.HashKey
+		DataRows []*product.DataRow
+	}
 
-// 	type transferExpectedVals struct {
-// 		Error error
-// 	}
+	type updateExpectedVals struct {
+		Error          error
+		HashKeysStored []mutator.MappedFieldValues
+		DataRowsStored []mutator.MappedFieldValues
+	}
 
-// 	mockError := errors.New("test")
+	tests := testutils.Tests[*updateInputVals, *updateExpectedVals]{
+		Cases: []testutils.TestCase[*updateInputVals, *updateExpectedVals]{
+			{
+				Name: "successfully updates",
+				Input: &updateInputVals{
+					Error: nil,
+					HashKeys: []*product.HashKey{
+						{Name: "test1"},
+						{Name: "test2"},
+					},
+					DataRows: []*product.DataRow{
+						{Price: 9.99},
+						{Price: 10.99},
+					},
+				},
+				Expected: &updateExpectedVals{
+					Error: nil,
+					HashKeysStored: []mutator.MappedFieldValues{
+						{product.NameKey: "test1"},
+						{product.NameKey: "test2"},
+					},
+					DataRowsStored: []mutator.MappedFieldValues{
+						{product.PriceKey: 9.99},
+						{product.PriceKey: 10.99},
+					},
+				},
+			},
+			{
+				Name: "returns mismatch length error",
+				Input: &updateInputVals{
+					Error:    nil,
+					DataRows: []*product.DataRow{},
+					HashKeys: []*product.HashKey{
+						{Name: "test"},
+					},
+				},
+				Expected: &updateExpectedVals{
+					Error:          datastore.InputLengthMismatchError,
+					HashKeysStored: []mutator.MappedFieldValues{},
+					DataRowsStored: []mutator.MappedFieldValues{},
+				},
+			},
+		},
+		Func: func(input *updateInputVals, expected *updateExpectedVals) {
+			mockBackend := &MockHashTableBackendOps{
+				ErrorRval: input.Error,
+			}
+			table := product.NewTable()
+			table.SetBackend(mockBackend)
 
-// 	tests := testutils.Tests[*transferInputVals, *transferExpectedVals]{
-// 		Cases: []testutils.TestCase[*transferInputVals, *transferExpectedVals]{
-// 			{
-// 				Name: "transfers good values",
-// 				Input: &transferInputVals{
-// 					Error: nil,
-// 					DataRows: []mutator.MappedFieldValues{
-// 						{"Message": "test1"},
-// 						{"Message": "test2"},
-// 					},
-// 				},
-// 				Expected: &transferExpectedVals{
-// 					Error: nil,
-// 				},
-// 			},
-// 			{
-// 				Name: "returns error for mismatched types",
-// 				Input: &transferInputVals{
-// 					Error: nil,
-// 					DataRows: []mutator.MappedFieldValues{
-// 						{"Message": 1},
-// 					},
-// 				},
-// 				Expected: &transferExpectedVals{
-// 					Error: mutator.SetFieldTypeError,
-// 				},
-// 			},
-// 			{
-// 				Name: "handles error from backend",
-// 				Input: &transferInputVals{
-// 					Error: mockError,
-// 					DataRows: []mutator.MappedFieldValues{
-// 						{"Message": "test"},
-// 					},
-// 				},
-// 				Expected: &transferExpectedVals{
-// 					Error: mockError,
-// 				},
-// 			},
-// 		},
-// 		Func: func(input *transferInputVals, expected *transferExpectedVals) {
-// 			mockBackendSrc := &MockAppendTableBackendOps{
-// 				ErrorRval:    input.Error,
-// 				DataRowsRval: input.DataRows,
-// 			}
-// 			srcTable := product.Newproduct()
-// 			srcTable.SetBackend(mockBackendSrc)
+			err := table.UpdateMultiple(input.HashKeys, input.DataRows)
+			testutils.AssertErrorEquals(t, expected.Error, err)
 
-// 			mockBackendDest := &MockAppendTableBackendOps{}
-// 			destTable := product.Newproduct()
-// 			destTable.SetBackend(mockBackendDest)
+			testutils.AssertEquals(t, len(expected.DataRowsStored), len(mockBackend.DataRowsInput))
+			for i := range expected.DataRowsStored {
+				AssertProductDataRowFieldsEqualOrDefault(t, expected.DataRowsStored[i], mockBackend.DataRowsInput[i])
+			}
 
-// 			err := srcTable.TransferTo(destTable, 10)
-// 			testutils.AssertErrorEquals(t, expected.Error, err)
+			testutils.AssertEquals(t, len(expected.HashKeysStored), len(mockBackend.HashKeysInput))
+			for i := range expected.HashKeysStored {
+				AssertProductHashKeyFieldsEqualOrDefault(t, expected.HashKeysStored[i], mockBackend.HashKeysInput[i])
+			}
+		},
+	}
 
-// 			if expected.Error != nil {
-// 				return
-// 			}
+	tests.Run(t)
+}
 
-// 			testutils.AssertEquals(t, len(input.DataRows), len(mockBackendDest.DataRowsInput))
-// 			for i := range input.DataRows {
-// 				expectedVal, ok := input.DataRows[i]["Message"].(fields.String)
-// 				testutils.AssertTrue(t, ok)
-// 				actualVal, ok := mockBackendDest.DataRowsInput[i]["Message"].(fields.String)
-// 				testutils.AssertTrue(t, ok)
-// 				testutils.AssertEquals(t, expectedVal, actualVal)
-// 			}
-// 		},
-// 	}
+func TestHashTableTransferTo(t *testing.T) {
+	type transferInputVals struct {
+		Error    error
+		HashKeys []mutator.MappedFieldValues
+		DataRows []mutator.MappedFieldValues
+	}
 
-// 	tests.Run(t)
-// }
+	type transferExpectedVals struct {
+		Error error
+	}
+
+	mockError := errors.New("test")
+
+	tests := testutils.Tests[*transferInputVals, *transferExpectedVals]{
+		Cases: []testutils.TestCase[*transferInputVals, *transferExpectedVals]{
+			{
+				Name: "transfers good values",
+				Input: &transferInputVals{
+					Error: nil,
+					HashKeys: []mutator.MappedFieldValues{
+						{product.NameKey: "test1"},
+						{product.NameKey: "test2"},
+					},
+					DataRows: []mutator.MappedFieldValues{
+						{product.PriceKey: 9.99},
+						{product.PriceKey: 10.99},
+					},
+				},
+				Expected: &transferExpectedVals{
+					Error: nil,
+				},
+			},
+			{
+				Name: "returns error for mismatched types",
+				Input: &transferInputVals{
+					Error: nil,
+					HashKeys: []mutator.MappedFieldValues{
+						{product.NameKey: 0},
+						{product.NameKey: "test2"},
+					},
+					DataRows: []mutator.MappedFieldValues{
+						{product.PriceKey: 9.99},
+						{product.PriceKey: 10.99},
+					},
+				},
+				Expected: &transferExpectedVals{
+					Error: mutator.SetFieldTypeError,
+				},
+			},
+			{
+				Name: "handles error from backend",
+				Input: &transferInputVals{
+					Error: mockError,
+					HashKeys: []mutator.MappedFieldValues{
+						{product.NameKey: "test1"},
+					},
+					DataRows: []mutator.MappedFieldValues{
+						{product.PriceKey: 9.99},
+					},
+				},
+				Expected: &transferExpectedVals{
+					Error: mockError,
+				},
+			},
+		},
+		Func: func(input *transferInputVals, expected *transferExpectedVals) {
+			mockBackendSrc := &MockHashTableBackendOps{
+				ErrorRval:    input.Error,
+				HashKeysRval: input.HashKeys,
+				DataRowsRval: input.DataRows,
+			}
+			srcTable := product.NewTable()
+			srcTable.SetBackend(mockBackendSrc)
+
+			mockBackendDest := &MockHashTableBackendOps{
+				HashKeysRval: input.HashKeys,
+			}
+			destTable := product.NewTable()
+			destTable.SetBackend(mockBackendDest)
+
+			err := srcTable.TransferTo(destTable, 10)
+			testutils.AssertErrorEquals(t, expected.Error, err)
+
+			if expected.Error != nil {
+				return
+			}
+
+			testutils.AssertEquals(t, len(input.HashKeys), len(mockBackendDest.HashKeysInput))
+			for i := range input.DataRows {
+				AssertProductHashKeyFieldsEqualOrDefault(t, input.HashKeys[i], mockBackendDest.HashKeysInput[i])
+			}
+
+			testutils.AssertEquals(t, len(input.DataRows), len(mockBackendDest.DataRowsInput))
+			for i := range input.DataRows {
+				AssertProductDataRowFieldsEqualOrDefault(t, input.DataRows[i], mockBackendDest.DataRowsInput[i])
+			}
+		},
+	}
+
+	tests.Run(t)
+}

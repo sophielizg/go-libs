@@ -1,6 +1,8 @@
 package datastore
 
-import "github.com/sophielizg/go-libs/datastore/mutator"
+import (
+	"github.com/sophielizg/go-libs/datastore/mutator"
+)
 
 // A simple key-value table
 type HashTable[V any, PV mutator.Mutatable[V], H any, PH mutator.Mutatable[H]] struct {
