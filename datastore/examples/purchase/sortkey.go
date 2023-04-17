@@ -12,25 +12,6 @@ const (
 	ItemNameKey     = "ItemName"
 )
 
-type SortKeyComparator struct {
-	PurchaseTime *compare.Comparator[fields.Time]
-	ItemBrand    *compare.Comparator[fields.String]
-	ItemName     *compare.Comparator[fields.String]
-	fieldMutator *mutator.FieldMutator
-}
-
-func (c *SortKeyComparator) Mutator() *mutator.FieldMutator {
-	if c.fieldMutator == nil {
-		c.fieldMutator = mutator.NewFieldMutator(
-			mutator.WithAddress(PurchaseTimeKey, &c.PurchaseTime),
-			mutator.WithAddress(ItemBrandKey, &c.ItemBrand),
-			mutator.WithAddress(ItemNameKey, &c.ItemName),
-		)
-	}
-
-	return c.fieldMutator
-}
-
 type SortKey struct {
 	PurchaseTime fields.Time
 	ItemBrand    fields.String
@@ -48,6 +29,25 @@ func (v *SortKey) Mutator() *mutator.FieldMutator {
 	}
 
 	return v.fieldMutator
+}
+
+type SortKeyComparator struct {
+	PurchaseTime *compare.Comparator[fields.Time]
+	ItemBrand    *compare.Comparator[fields.String]
+	ItemName     *compare.Comparator[fields.String]
+	fieldMutator *mutator.FieldMutator
+}
+
+func (c *SortKeyComparator) Mutator() *mutator.FieldMutator {
+	if c.fieldMutator == nil {
+		c.fieldMutator = mutator.NewFieldMutator(
+			mutator.WithAddress(PurchaseTimeKey, &c.PurchaseTime),
+			mutator.WithAddress(ItemBrandKey, &c.ItemBrand),
+			mutator.WithAddress(ItemNameKey, &c.ItemName),
+		)
+	}
+
+	return c.fieldMutator
 }
 
 var SortKeySettings = fields.DataRowSettings{

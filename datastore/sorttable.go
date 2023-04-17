@@ -42,7 +42,7 @@ func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) Scan(batchSize int) (chan *SortT
 			return nil, err
 		} else if res.HashKey, err = t.HashKeyFactory.CreateFromFields(fields.HashKey); err != nil {
 			return nil, err
-		} else if res.SortKey, err = t.SortKeyFactory.CreateFromFields(fields.HashKey); err != nil {
+		} else if res.SortKey, err = t.SortKeyFactory.CreateFromFields(fields.SortKey); err != nil {
 			return nil, err
 		}
 		return res, nil
