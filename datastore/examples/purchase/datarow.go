@@ -6,13 +6,13 @@ import (
 )
 
 const (
-	departmentKey  = "Department"
-	priceKey       = "Price"
-	quantityKey    = "Quantity"
-	lastUpdatedKey = "LastUpdated"
+	DepartmentKey  = "Department"
+	PriceKey       = "Price"
+	QuantityKey    = "Quantity"
+	LastUpdatedKey = "LastUpdated"
 )
 
-type PurchaseDataRow struct {
+type DataRow struct {
 	Department   fields.String
 	Price        fields.Float
 	Quantity     fields.Int
@@ -20,22 +20,22 @@ type PurchaseDataRow struct {
 	fieldMutator *mutator.FieldMutator
 }
 
-func (v *PurchaseDataRow) Mutator() *mutator.FieldMutator {
+func (v *DataRow) Mutator() *mutator.FieldMutator {
 	if v.fieldMutator == nil {
 		v.fieldMutator = mutator.NewFieldMutator(
-			mutator.WithAddress(departmentKey, &v.Department),
-			mutator.WithAddress(priceKey, &v.Price),
-			mutator.WithAddress(quantityKey, &v.Quantity),
-			mutator.WithAddress(lastUpdatedKey, &v.LastUpdated),
+			mutator.WithAddress(DepartmentKey, &v.Department),
+			mutator.WithAddress(PriceKey, &v.Price),
+			mutator.WithAddress(QuantityKey, &v.Quantity),
+			mutator.WithAddress(LastUpdatedKey, &v.LastUpdated),
 		)
 	}
 
 	return v.fieldMutator
 }
 
-var PurchaseDataRowSettings = fields.DataRowSettings{
+var DataRowSettings = fields.DataRowSettings{
 	FieldSettings: fields.NewFieldSettings(
-		fields.WithNumBytes(departmentKey, 63),
+		fields.WithNumBytes(DepartmentKey, 63),
 	),
-	FieldOrder: fields.OrderedFieldKeys{departmentKey, priceKey, quantityKey, lastUpdatedKey},
+	FieldOrder: fields.OrderedFieldKeys{DepartmentKey, PriceKey, QuantityKey, LastUpdatedKey},
 }

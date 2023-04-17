@@ -6,27 +6,27 @@ import (
 )
 
 const (
-	customerNameKey = "CustomerName"
+	CustomerNameKey = "CustomerName"
 )
 
-type PurchaseHashKey struct {
+type HashKey struct {
 	CustomerName fields.String
 	fieldMutator *mutator.FieldMutator
 }
 
-func (v *PurchaseHashKey) Mutator() *mutator.FieldMutator {
+func (v *HashKey) Mutator() *mutator.FieldMutator {
 	if v.fieldMutator == nil {
 		v.fieldMutator = mutator.NewFieldMutator(
-			mutator.WithAddress(customerNameKey, &v.CustomerName),
+			mutator.WithAddress(CustomerNameKey, &v.CustomerName),
 		)
 	}
 
 	return v.fieldMutator
 }
 
-var ProductHashKeySettings = fields.DataRowSettings{
+var HashKeySettings = fields.DataRowSettings{
 	FieldSettings: fields.NewFieldSettings(
-		fields.WithNumBytes(customerNameKey, 123),
+		fields.WithNumBytes(CustomerNameKey, 123),
 	),
-	FieldOrder: fields.OrderedFieldKeys{customerNameKey},
+	FieldOrder: fields.OrderedFieldKeys{CustomerNameKey},
 }
