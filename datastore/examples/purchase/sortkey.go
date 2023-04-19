@@ -55,5 +55,5 @@ var SortKeySettings = fields.DataRowSettings{
 		fields.WithNumBytes(ItemBrandKey, 63),
 		fields.WithNumBytes(ItemNameKey, 255),
 	),
-	FieldOrder: fields.OrderedFieldKeys{ItemBrandKey, ItemNameKey},
+	FieldOrder: fields.OrderedFieldKeys{PurchaseTimeKey, ItemBrandKey, ItemNameKey},
 }

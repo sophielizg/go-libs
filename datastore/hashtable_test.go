@@ -659,7 +659,7 @@ func TestHashTableTransferTo(t *testing.T) {
 			}
 
 			testutils.AssertEquals(t, len(input.HashKeys), len(mockBackendDest.HashKeysInput))
-			for i := range input.DataRows {
+			for i := range input.HashKeys {
 				AssertProductHashKeyFieldsEqualOrDefault(t, input.HashKeys[i], mockBackendDest.HashKeysInput[i])
 			}
 

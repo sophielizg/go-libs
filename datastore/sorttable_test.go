@@ -3,8 +3,10 @@ package datastore_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/sophielizg/go-libs/datastore"
+	"github.com/sophielizg/go-libs/datastore/compare"
 	"github.com/sophielizg/go-libs/datastore/examples/purchase"
 	"github.com/sophielizg/go-libs/datastore/fields"
 	"github.com/sophielizg/go-libs/datastore/mutator"
@@ -125,16 +127,58 @@ func AssertPurchaseSortKeyFieldsEqualOrDefault(t *testing.T, expected, actual mu
 	}
 }
 
+func AssertPurchaseSortKeyComparatorEquals(t *testing.T, expected, actual *purchase.SortKeyComparator) {
+	t.Helper()
+	testutils.AssertTrue(t, expected.PurchaseTime.Equals(actual.PurchaseTime))
+	testutils.AssertTrue(t, expected.ItemBrand.Equals(actual.ItemBrand))
+	testutils.AssertTrue(t, expected.ItemName.Equals(actual.ItemName))
+}
+
+func AssertPurchaseSortKeyComparatorFieldsEqualOrDefault(t *testing.T, expected, actual mutator.MappedFieldValues) {
+	t.Helper()
+
+	expectedPurchaseTimeVal, expectedOk := expected[purchase.PurchaseTimeKey].(*compare.Comparator[fields.Time])
+	actualPurchaseTimeVal, ok := actual[purchase.PurchaseTimeKey].(*compare.Comparator[fields.Time])
+	testutils.AssertTrue(t, ok)
+	if expectedOk {
+		testutils.AssertTrue(t, expectedPurchaseTimeVal.Equals(actualPurchaseTimeVal))
+	} else {
+		// Check for default value
+		testutils.AssertNull(t, actualPurchaseTimeVal)
+	}
+
+	expectedItemBrandVal, expectedOk := expected[purchase.ItemBrandKey].(*compare.Comparator[fields.String])
+	actualItemBrandVal, ok := actual[purchase.ItemBrandKey].(*compare.Comparator[fields.String])
+	testutils.AssertTrue(t, ok)
+	if expectedOk {
+		testutils.AssertTrue(t, expectedItemBrandVal.Equals(actualItemBrandVal))
+	} else {
+		// Check for default value
+		testutils.AssertNull(t, actualItemBrandVal)
+	}
+
+	expectedItemNameVal, expectedOk := expected[purchase.ItemNameKey].(*compare.Comparator[fields.String])
+	actualItemNameVal, ok := actual[purchase.ItemNameKey].(*compare.Comparator[fields.String])
+	testutils.AssertTrue(t, ok)
+	if expectedOk {
+		testutils.AssertTrue(t, expectedItemNameVal.Equals(actualItemNameVal))
+	} else {
+		// Check for default value
+		testutils.AssertNull(t, actualItemNameVal)
+	}
+}
+
 // MOCKS
 
 type MockSortTableBackendOps struct {
-	ErrorRval     error
-	DataRowsRval  []mutator.MappedFieldValues
-	HashKeysRval  []mutator.MappedFieldValues
-	SortKeysRval  []mutator.MappedFieldValues
-	DataRowsInput []mutator.MappedFieldValues
-	HashKeysInput []mutator.MappedFieldValues
-	SortKeysInput []mutator.MappedFieldValues
+	ErrorRval       error
+	DataRowsRval    []mutator.MappedFieldValues
+	HashKeysRval    []mutator.MappedFieldValues
+	SortKeysRval    []mutator.MappedFieldValues
+	DataRowsInput   []mutator.MappedFieldValues
+	HashKeysInput   []mutator.MappedFieldValues
+	SortKeysInput   []mutator.MappedFieldValues
+	ComparatorInput mutator.MappedFieldValues
 }
 
 func (b *MockSortTableBackendOps) Scan(batchSize int) (chan *datastore.ScanFields, chan error) {
@@ -184,14 +228,18 @@ func (b *MockSortTableBackendOps) DeleteMultiple(hashKeys []mutator.MappedFieldV
 }
 
 func (b *MockSortTableBackendOps) GetWithSortComparator(hashKey mutator.MappedFieldValues, comparator mutator.MappedFieldValues) ([]mutator.MappedFieldValues, []mutator.MappedFieldValues, error) {
+	b.ComparatorInput = comparator
 	return b.DataRowsRval, b.SortKeysRval, b.ErrorRval
 }
 
 func (b *MockSortTableBackendOps) UpdateWithSortComparator(hashKey mutator.MappedFieldValues, comparator mutator.MappedFieldValues, data mutator.MappedFieldValues) error {
+	b.ComparatorInput = comparator
+	b.DataRowsInput = []mutator.MappedFieldValues{data}
 	return b.ErrorRval
 }
 
 func (b *MockSortTableBackendOps) DeleteWithSortComparator(hashKey mutator.MappedFieldValues, comparator mutator.MappedFieldValues) error {
+	b.ComparatorInput = comparator
 	return b.ErrorRval
 }
 
@@ -389,372 +437,636 @@ func TestSortTableScan(t *testing.T) {
 	tests.Run(t)
 }
 
-// func TestHashTableGet(t *testing.T) {
-// 	type getInputVals struct {
-// 		Error        error
-// 		HashKeys     []*purchase.HashKey
-// 		DataRowsRval []mutator.MappedFieldValues
-// 	}
+func TestSortTableGetMultiple(t *testing.T) {
+	type getInputVals struct {
+		Error        error
+		HashKeys     []*purchase.HashKey
+		SortKeys     []*purchase.SortKey
+		DataRowsRval []mutator.MappedFieldValues
+	}
 
-// 	type getExpectedVals struct {
-// 		Error    error
-// 		DataRows []*purchase.DataRow
-// 	}
+	type getExpectedVals struct {
+		Error    error
+		DataRows []*purchase.DataRow
+	}
 
-// 	mockError := errors.New("test")
+	mockError := errors.New("test")
 
-// 	tests := testutils.Tests[*getInputVals, *getExpectedVals]{
-// 		Cases: []testutils.TestCase[*getInputVals, *getExpectedVals]{
-// 			{
-// 				Name: "successfully gets",
-// 				Input: &getInputVals{
-// 					Error: nil,
-// 					HashKeys: []*purchase.HashKey{
-// 						{Name: "test1"},
-// 						{Name: "test2"},
-// 					},
-// 					DataRowsRval: []mutator.MappedFieldValues{
-// 						{purchase.PriceKey: 9.99},
-// 						{purchase.PriceKey: 10.99},
-// 					},
-// 				},
-// 				Expected: &getExpectedVals{
-// 					Error: nil,
-// 					DataRows: []*purchase.DataRow{
-// 						{Price: 9.99},
-// 						{Price: 10.99},
-// 					},
-// 				},
-// 			},
-// 			{
-// 				Name: "returns error",
-// 				Input: &getInputVals{
-// 					Error:        mockError,
-// 					HashKeys:     []*purchase.HashKey{},
-// 					DataRowsRval: []mutator.MappedFieldValues{},
-// 				},
-// 				Expected: &getExpectedVals{
-// 					Error:    mockError,
-// 					DataRows: nil,
-// 				},
-// 			},
-// 		},
-// 		Func: func(input *getInputVals, expected *getExpectedVals) {
-// 			mockBackend := &MockSortTableBackendOps{
-// 				ErrorRval:    input.Error,
-// 				DataRowsRval: input.DataRowsRval,
-// 			}
-// 			table := purchase.NewTable()
-// 			table.SetBackend(mockBackend)
+	tests := testutils.Tests[*getInputVals, *getExpectedVals]{
+		Cases: []testutils.TestCase[*getInputVals, *getExpectedVals]{
+			{
+				Name: "successfully gets",
+				Input: &getInputVals{
+					Error: nil,
+					HashKeys: []*purchase.HashKey{
+						{CustomerName: "test1"},
+						{CustomerName: "test2"},
+					},
+					SortKeys: []*purchase.SortKey{
+						{ItemName: "test1"},
+						{ItemName: "test2"},
+					},
+					DataRowsRval: []mutator.MappedFieldValues{
+						{purchase.PriceKey: 9.99},
+						{purchase.PriceKey: 10.99},
+					},
+				},
+				Expected: &getExpectedVals{
+					Error: nil,
+					DataRows: []*purchase.DataRow{
+						{Price: 9.99},
+						{Price: 10.99},
+					},
+				},
+			},
+			{
+				Name: "returns error",
+				Input: &getInputVals{
+					Error:        mockError,
+					HashKeys:     []*purchase.HashKey{},
+					SortKeys:     []*purchase.SortKey{},
+					DataRowsRval: []mutator.MappedFieldValues{},
+				},
+				Expected: &getExpectedVals{
+					Error:    mockError,
+					DataRows: nil,
+				},
+			},
+		},
+		Func: func(input *getInputVals, expected *getExpectedVals) {
+			mockBackend := &MockSortTableBackendOps{
+				ErrorRval:    input.Error,
+				DataRowsRval: input.DataRowsRval,
+			}
+			table := purchase.NewTable()
+			table.SetBackend(mockBackend)
 
-// 			actualDataRows, err := table.Get(input.HashKeys...)
-// 			testutils.AssertErrorEquals(t, expected.Error, err)
+			actualDataRows, err := table.GetMultiple(input.HashKeys, input.SortKeys)
+			testutils.AssertErrorEquals(t, expected.Error, err)
 
-// 			testutils.AssertEquals(t, len(expected.DataRows), len(actualDataRows))
-// 			for i := range expected.DataRows {
-// 				AssertPurchaseDataRowEquals(t, expected.DataRows[i], actualDataRows[i])
-// 			}
-// 		},
-// 	}
+			testutils.AssertEquals(t, len(expected.DataRows), len(actualDataRows))
+			for i := range expected.DataRows {
+				AssertPurchaseDataRowEquals(t, expected.DataRows[i], actualDataRows[i])
+			}
+		},
+	}
 
-// 	tests.Run(t)
-// }
+	tests.Run(t)
+}
 
-// func TestHashTableAddMultiple(t *testing.T) {
-// 	type addInputVals struct {
-// 		Error        error
-// 		HashKeys     []*purchase.HashKey
-// 		DataRows     []*purchase.DataRow
-// 		HashKeysRval []mutator.MappedFieldValues
-// 	}
+func TestSortTableAddMultiple(t *testing.T) {
+	type addInputVals struct {
+		Error        error
+		HashKeys     []*purchase.HashKey
+		SortKeys     []*purchase.SortKey
+		DataRows     []*purchase.DataRow
+		HashKeysRval []mutator.MappedFieldValues
+		SortKeysRval []mutator.MappedFieldValues
+	}
 
-// 	type addExpectedVals struct {
-// 		Error          error
-// 		HashKeysRval   []*purchase.HashKey
-// 		HashKeysStored []mutator.MappedFieldValues
-// 		DataRowsStored []mutator.MappedFieldValues
-// 	}
+	type addExpectedVals struct {
+		Error          error
+		HashKeysRval   []*purchase.HashKey
+		SortKeysRval   []*purchase.SortKey
+		HashKeysStored []mutator.MappedFieldValues
+		SortKeysStored []mutator.MappedFieldValues
+		DataRowsStored []mutator.MappedFieldValues
+	}
 
-// 	mockError := errors.New("test")
+	mockError := errors.New("test")
 
-// 	tests := testutils.Tests[*addInputVals, *addExpectedVals]{
-// 		Cases: []testutils.TestCase[*addInputVals, *addExpectedVals]{
-// 			{
-// 				Name: "successfully adds",
-// 				Input: &addInputVals{
-// 					Error: nil,
-// 					HashKeys: []*purchase.HashKey{
-// 						{Name: "test1"},
-// 						{Name: "test2"},
-// 					},
-// 					DataRows: []*purchase.DataRow{
-// 						{Price: 9.99},
-// 						{Price: 10.99},
-// 					},
-// 					HashKeysRval: []mutator.MappedFieldValues{
-// 						{purchase.NameKey: "test1"},
-// 						{purchase.NameKey: "test2"},
-// 					},
-// 				},
-// 				Expected: &addExpectedVals{
-// 					Error: nil,
-// 					HashKeysRval: []*purchase.HashKey{
-// 						{Name: "test1"},
-// 						{Name: "test2"},
-// 					},
-// 					HashKeysStored: []mutator.MappedFieldValues{
-// 						{purchase.NameKey: "test1"},
-// 						{purchase.NameKey: "test2"},
-// 					},
-// 					DataRowsStored: []mutator.MappedFieldValues{
-// 						{purchase.PriceKey: 9.99},
-// 						{purchase.PriceKey: 10.99},
-// 					},
-// 				},
-// 			},
-// 			{
-// 				Name: "returns error",
-// 				Input: &addInputVals{
-// 					Error:        mockError,
-// 					DataRows:     []*purchase.DataRow{},
-// 					HashKeys:     []*purchase.HashKey{},
-// 					HashKeysRval: []mutator.MappedFieldValues{},
-// 				},
-// 				Expected: &addExpectedVals{
-// 					Error:          mockError,
-// 					HashKeysRval:   nil,
-// 					HashKeysStored: []mutator.MappedFieldValues{},
-// 					DataRowsStored: []mutator.MappedFieldValues{},
-// 				},
-// 			},
-// 			{
-// 				Name: "returns mismatch length error",
-// 				Input: &addInputVals{
-// 					Error:    nil,
-// 					DataRows: []*purchase.DataRow{},
-// 					HashKeys: []*purchase.HashKey{},
-// 					HashKeysRval: []mutator.MappedFieldValues{
-// 						{purchase.NameKey: "test1"},
-// 					},
-// 				},
-// 				Expected: &addExpectedVals{
-// 					Error:          datastore.OutputLengthMismatchError,
-// 					HashKeysRval:   nil,
-// 					HashKeysStored: []mutator.MappedFieldValues{},
-// 					DataRowsStored: []mutator.MappedFieldValues{},
-// 				},
-// 			},
-// 		},
-// 		Func: func(input *addInputVals, expected *addExpectedVals) {
-// 			mockBackend := &MockSortTableBackendOps{
-// 				ErrorRval:    input.Error,
-// 				HashKeysRval: input.HashKeysRval,
-// 			}
-// 			table := purchase.NewTable()
-// 			table.SetBackend(mockBackend)
+	tests := testutils.Tests[*addInputVals, *addExpectedVals]{
+		Cases: []testutils.TestCase[*addInputVals, *addExpectedVals]{
+			{
+				Name: "successfully adds",
+				Input: &addInputVals{
+					Error: nil,
+					HashKeys: []*purchase.HashKey{
+						{CustomerName: "test1"},
+						{CustomerName: "test2"},
+					},
+					SortKeys: []*purchase.SortKey{
+						{ItemName: "test1"},
+						{ItemName: "test2"},
+					},
+					DataRows: []*purchase.DataRow{
+						{Price: 9.99},
+						{Price: 10.99},
+					},
+					HashKeysRval: []mutator.MappedFieldValues{
+						{purchase.CustomerNameKey: "test1"},
+						{purchase.CustomerNameKey: "test2"},
+					},
+					SortKeysRval: []mutator.MappedFieldValues{
+						{purchase.ItemNameKey: "test1"},
+						{purchase.ItemNameKey: "test2"},
+					},
+				},
+				Expected: &addExpectedVals{
+					Error: nil,
+					HashKeysRval: []*purchase.HashKey{
+						{CustomerName: "test1"},
+						{CustomerName: "test2"},
+					},
+					SortKeysRval: []*purchase.SortKey{
+						{ItemName: "test1"},
+						{ItemName: "test2"},
+					},
+					HashKeysStored: []mutator.MappedFieldValues{
+						{purchase.CustomerNameKey: "test1"},
+						{purchase.CustomerNameKey: "test2"},
+					},
+					SortKeysStored: []mutator.MappedFieldValues{
+						{purchase.ItemNameKey: "test1"},
+						{purchase.ItemNameKey: "test2"},
+					},
+					DataRowsStored: []mutator.MappedFieldValues{
+						{purchase.PriceKey: 9.99},
+						{purchase.PriceKey: 10.99},
+					},
+				},
+			},
+			{
+				Name: "returns error",
+				Input: &addInputVals{
+					Error:        mockError,
+					DataRows:     []*purchase.DataRow{},
+					SortKeys:     []*purchase.SortKey{},
+					HashKeys:     []*purchase.HashKey{},
+					HashKeysRval: []mutator.MappedFieldValues{},
+					SortKeysRval: []mutator.MappedFieldValues{},
+				},
+				Expected: &addExpectedVals{
+					Error:          mockError,
+					HashKeysRval:   nil,
+					SortKeysRval:   nil,
+					HashKeysStored: []mutator.MappedFieldValues{},
+					SortKeysStored: []mutator.MappedFieldValues{},
+					DataRowsStored: []mutator.MappedFieldValues{},
+				},
+			},
+			{
+				Name: "returns mismatch length error for hash keys",
+				Input: &addInputVals{
+					Error:    nil,
+					DataRows: []*purchase.DataRow{},
+					SortKeys: []*purchase.SortKey{},
+					HashKeys: []*purchase.HashKey{},
+					HashKeysRval: []mutator.MappedFieldValues{
+						{purchase.CustomerNameKey: "test1"},
+					},
+					SortKeysRval: []mutator.MappedFieldValues{},
+				},
+				Expected: &addExpectedVals{
+					Error:          datastore.OutputLengthMismatchError,
+					HashKeysRval:   nil,
+					SortKeysRval:   nil,
+					HashKeysStored: []mutator.MappedFieldValues{},
+					SortKeysStored: []mutator.MappedFieldValues{},
+					DataRowsStored: []mutator.MappedFieldValues{},
+				},
+			},
+			{
+				Name: "returns mismatch length error for sort keys",
+				Input: &addInputVals{
+					Error:        nil,
+					DataRows:     []*purchase.DataRow{},
+					SortKeys:     []*purchase.SortKey{},
+					HashKeys:     []*purchase.HashKey{},
+					HashKeysRval: []mutator.MappedFieldValues{},
+					SortKeysRval: []mutator.MappedFieldValues{
+						{purchase.ItemNameKey: "test1"},
+					},
+				},
+				Expected: &addExpectedVals{
+					Error:          datastore.OutputLengthMismatchError,
+					HashKeysRval:   nil,
+					SortKeysRval:   nil,
+					HashKeysStored: []mutator.MappedFieldValues{},
+					SortKeysStored: []mutator.MappedFieldValues{},
+					DataRowsStored: []mutator.MappedFieldValues{},
+				},
+			},
+		},
+		Func: func(input *addInputVals, expected *addExpectedVals) {
+			mockBackend := &MockSortTableBackendOps{
+				ErrorRval:    input.Error,
+				HashKeysRval: input.HashKeysRval,
+				SortKeysRval: input.SortKeysRval,
+			}
+			table := purchase.NewTable()
+			table.SetBackend(mockBackend)
 
-// 			actualHashKeysRval, err := table.AddMultiple(input.HashKeys, input.DataRows)
-// 			testutils.AssertErrorEquals(t, expected.Error, err)
+			actualHashKeysRval, actualSortKeysRval, err := table.AddMultiple(input.HashKeys, input.SortKeys, input.DataRows)
+			testutils.AssertErrorEquals(t, expected.Error, err)
 
-// 			testutils.AssertEquals(t, len(expected.DataRowsStored), len(mockBackend.DataRowsInput))
-// 			for i := range expected.DataRowsStored {
-// 				AssertPurchaseDataRowFieldsEqualOrDefault(t, expected.DataRowsStored[i], mockBackend.DataRowsInput[i])
-// 			}
+			testutils.AssertEquals(t, len(expected.DataRowsStored), len(mockBackend.DataRowsInput))
+			for i := range expected.DataRowsStored {
+				AssertPurchaseDataRowFieldsEqualOrDefault(t, expected.DataRowsStored[i], mockBackend.DataRowsInput[i])
+			}
 
-// 			testutils.AssertEquals(t, len(expected.HashKeysStored), len(mockBackend.HashKeysInput))
-// 			for i := range expected.HashKeysStored {
-// 				AssertPurchaseHashKeyFieldsEqualOrDefault(t, expected.HashKeysStored[i], mockBackend.HashKeysInput[i])
-// 			}
+			testutils.AssertEquals(t, len(expected.HashKeysStored), len(mockBackend.HashKeysInput))
+			for i := range expected.HashKeysStored {
+				AssertPurchaseHashKeyFieldsEqualOrDefault(t, expected.HashKeysStored[i], mockBackend.HashKeysInput[i])
+			}
 
-// 			testutils.AssertEquals(t, len(expected.HashKeysRval), len(actualHashKeysRval))
-// 			for i := range expected.HashKeysRval {
-// 				AssertPurchaseHashKeyEquals(t, expected.HashKeysRval[i], actualHashKeysRval[i])
-// 			}
-// 		},
-// 	}
+			testutils.AssertEquals(t, len(expected.SortKeysStored), len(mockBackend.SortKeysInput))
+			for i := range expected.SortKeysStored {
+				AssertPurchaseSortKeyFieldsEqualOrDefault(t, expected.SortKeysStored[i], mockBackend.SortKeysInput[i])
+			}
 
-// 	tests.Run(t)
-// }
+			testutils.AssertEquals(t, len(expected.HashKeysRval), len(actualHashKeysRval))
+			for i := range expected.HashKeysRval {
+				AssertPurchaseHashKeyEquals(t, expected.HashKeysRval[i], actualHashKeysRval[i])
+			}
 
-// func TestHashTableUpdateMultiple(t *testing.T) {
-// 	type updateInputVals struct {
-// 		Error    error
-// 		HashKeys []*purchase.HashKey
-// 		DataRows []*purchase.DataRow
-// 	}
+			testutils.AssertEquals(t, len(expected.SortKeysRval), len(actualSortKeysRval))
+			for i := range expected.SortKeysRval {
+				AssertPurchaseSortKeyEquals(t, expected.SortKeysRval[i], actualSortKeysRval[i])
+			}
+		},
+	}
 
-// 	type updateExpectedVals struct {
-// 		Error          error
-// 		HashKeysStored []mutator.MappedFieldValues
-// 		DataRowsStored []mutator.MappedFieldValues
-// 	}
+	tests.Run(t)
+}
 
-// 	tests := testutils.Tests[*updateInputVals, *updateExpectedVals]{
-// 		Cases: []testutils.TestCase[*updateInputVals, *updateExpectedVals]{
-// 			{
-// 				Name: "successfully updates",
-// 				Input: &updateInputVals{
-// 					Error: nil,
-// 					HashKeys: []*purchase.HashKey{
-// 						{Name: "test1"},
-// 						{Name: "test2"},
-// 					},
-// 					DataRows: []*purchase.DataRow{
-// 						{Price: 9.99},
-// 						{Price: 10.99},
-// 					},
-// 				},
-// 				Expected: &updateExpectedVals{
-// 					Error: nil,
-// 					HashKeysStored: []mutator.MappedFieldValues{
-// 						{purchase.NameKey: "test1"},
-// 						{purchase.NameKey: "test2"},
-// 					},
-// 					DataRowsStored: []mutator.MappedFieldValues{
-// 						{purchase.PriceKey: 9.99},
-// 						{purchase.PriceKey: 10.99},
-// 					},
-// 				},
-// 			},
-// 			{
-// 				Name: "returns mismatch length error",
-// 				Input: &updateInputVals{
-// 					Error:    nil,
-// 					DataRows: []*purchase.DataRow{},
-// 					HashKeys: []*purchase.HashKey{
-// 						{Name: "test"},
-// 					},
-// 				},
-// 				Expected: &updateExpectedVals{
-// 					Error:          datastore.InputLengthMismatchError,
-// 					HashKeysStored: []mutator.MappedFieldValues{},
-// 					DataRowsStored: []mutator.MappedFieldValues{},
-// 				},
-// 			},
-// 		},
-// 		Func: func(input *updateInputVals, expected *updateExpectedVals) {
-// 			mockBackend := &MockSortTableBackendOps{
-// 				ErrorRval: input.Error,
-// 			}
-// 			table := purchase.NewTable()
-// 			table.SetBackend(mockBackend)
+func TestSortTableUpdateMultiple(t *testing.T) {
+	type updateInputVals struct {
+		Error    error
+		HashKeys []*purchase.HashKey
+		SortKeys []*purchase.SortKey
+		DataRows []*purchase.DataRow
+	}
 
-// 			err := table.UpdateMultiple(input.HashKeys, input.DataRows)
-// 			testutils.AssertErrorEquals(t, expected.Error, err)
+	type updateExpectedVals struct {
+		Error          error
+		HashKeysStored []mutator.MappedFieldValues
+		SortKeysStored []mutator.MappedFieldValues
+		DataRowsStored []mutator.MappedFieldValues
+	}
 
-// 			testutils.AssertEquals(t, len(expected.DataRowsStored), len(mockBackend.DataRowsInput))
-// 			for i := range expected.DataRowsStored {
-// 				AssertPurchaseDataRowFieldsEqualOrDefault(t, expected.DataRowsStored[i], mockBackend.DataRowsInput[i])
-// 			}
+	tests := testutils.Tests[*updateInputVals, *updateExpectedVals]{
+		Cases: []testutils.TestCase[*updateInputVals, *updateExpectedVals]{
+			{
+				Name: "successfully updates",
+				Input: &updateInputVals{
+					Error: nil,
+					HashKeys: []*purchase.HashKey{
+						{CustomerName: "test1"},
+						{CustomerName: "test2"},
+					},
+					SortKeys: []*purchase.SortKey{
+						{ItemName: "test1"},
+						{ItemName: "test2"},
+					},
+					DataRows: []*purchase.DataRow{
+						{Price: 9.99},
+						{Price: 10.99},
+					},
+				},
+				Expected: &updateExpectedVals{
+					Error: nil,
+					HashKeysStored: []mutator.MappedFieldValues{
+						{purchase.CustomerNameKey: "test1"},
+						{purchase.CustomerNameKey: "test2"},
+					},
+					SortKeysStored: []mutator.MappedFieldValues{
+						{purchase.ItemNameKey: "test1"},
+						{purchase.ItemNameKey: "test2"},
+					},
+					DataRowsStored: []mutator.MappedFieldValues{
+						{purchase.PriceKey: 9.99},
+						{purchase.PriceKey: 10.99},
+					},
+				},
+			},
+			{
+				Name: "returns mismatch length error for hash keys",
+				Input: &updateInputVals{
+					Error:    nil,
+					DataRows: []*purchase.DataRow{},
+					HashKeys: []*purchase.HashKey{
+						{CustomerName: "test"},
+					},
+					SortKeys: []*purchase.SortKey{},
+				},
+				Expected: &updateExpectedVals{
+					Error:          datastore.InputLengthMismatchError,
+					HashKeysStored: []mutator.MappedFieldValues{},
+					SortKeysStored: []mutator.MappedFieldValues{},
+					DataRowsStored: []mutator.MappedFieldValues{},
+				},
+			},
+			{
+				Name: "returns mismatch length error for sort keys",
+				Input: &updateInputVals{
+					Error:    nil,
+					DataRows: []*purchase.DataRow{},
+					HashKeys: []*purchase.HashKey{},
+					SortKeys: []*purchase.SortKey{
+						{ItemName: "test1"},
+					},
+				},
+				Expected: &updateExpectedVals{
+					Error:          datastore.InputLengthMismatchError,
+					HashKeysStored: []mutator.MappedFieldValues{},
+					SortKeysStored: []mutator.MappedFieldValues{},
+					DataRowsStored: []mutator.MappedFieldValues{},
+				},
+			},
+		},
+		Func: func(input *updateInputVals, expected *updateExpectedVals) {
+			mockBackend := &MockSortTableBackendOps{
+				ErrorRval: input.Error,
+			}
+			table := purchase.NewTable()
+			table.SetBackend(mockBackend)
 
-// 			testutils.AssertEquals(t, len(expected.HashKeysStored), len(mockBackend.HashKeysInput))
-// 			for i := range expected.HashKeysStored {
-// 				AssertPurchaseHashKeyFieldsEqualOrDefault(t, expected.HashKeysStored[i], mockBackend.HashKeysInput[i])
-// 			}
-// 		},
-// 	}
+			err := table.UpdateMultiple(input.HashKeys, input.SortKeys, input.DataRows)
+			testutils.AssertErrorEquals(t, expected.Error, err)
 
-// 	tests.Run(t)
-// }
+			testutils.AssertEquals(t, len(expected.DataRowsStored), len(mockBackend.DataRowsInput))
+			for i := range expected.DataRowsStored {
+				AssertPurchaseDataRowFieldsEqualOrDefault(t, expected.DataRowsStored[i], mockBackend.DataRowsInput[i])
+			}
 
-// func TestHashTableTransferTo(t *testing.T) {
-// 	type transferInputVals struct {
-// 		Error    error
-// 		HashKeys []mutator.MappedFieldValues
-// 		DataRows []mutator.MappedFieldValues
-// 	}
+			testutils.AssertEquals(t, len(expected.HashKeysStored), len(mockBackend.HashKeysInput))
+			for i := range expected.HashKeysStored {
+				AssertPurchaseHashKeyFieldsEqualOrDefault(t, expected.HashKeysStored[i], mockBackend.HashKeysInput[i])
+			}
 
-// 	type transferExpectedVals struct {
-// 		Error error
-// 	}
+			testutils.AssertEquals(t, len(expected.SortKeysStored), len(mockBackend.SortKeysInput))
+			for i := range expected.SortKeysStored {
+				AssertPurchaseSortKeyFieldsEqualOrDefault(t, expected.SortKeysStored[i], mockBackend.SortKeysInput[i])
+			}
+		},
+	}
 
-// 	mockError := errors.New("test")
+	tests.Run(t)
+}
 
-// 	tests := testutils.Tests[*transferInputVals, *transferExpectedVals]{
-// 		Cases: []testutils.TestCase[*transferInputVals, *transferExpectedVals]{
-// 			{
-// 				Name: "transfers good values",
-// 				Input: &transferInputVals{
-// 					Error: nil,
-// 					HashKeys: []mutator.MappedFieldValues{
-// 						{purchase.NameKey: "test1"},
-// 						{purchase.NameKey: "test2"},
-// 					},
-// 					DataRows: []mutator.MappedFieldValues{
-// 						{purchase.PriceKey: 9.99},
-// 						{purchase.PriceKey: 10.99},
-// 					},
-// 				},
-// 				Expected: &transferExpectedVals{
-// 					Error: nil,
-// 				},
-// 			},
-// 			{
-// 				Name: "returns error for mismatched types",
-// 				Input: &transferInputVals{
-// 					Error: nil,
-// 					HashKeys: []mutator.MappedFieldValues{
-// 						{purchase.NameKey: 0},
-// 						{purchase.NameKey: "test2"},
-// 					},
-// 					DataRows: []mutator.MappedFieldValues{
-// 						{purchase.PriceKey: 9.99},
-// 						{purchase.PriceKey: 10.99},
-// 					},
-// 				},
-// 				Expected: &transferExpectedVals{
-// 					Error: mutator.SetFieldTypeError,
-// 				},
-// 			},
-// 			{
-// 				Name: "handles error from backend",
-// 				Input: &transferInputVals{
-// 					Error: mockError,
-// 					HashKeys: []mutator.MappedFieldValues{
-// 						{purchase.NameKey: "test1"},
-// 					},
-// 					DataRows: []mutator.MappedFieldValues{
-// 						{purchase.PriceKey: 9.99},
-// 					},
-// 				},
-// 				Expected: &transferExpectedVals{
-// 					Error: mockError,
-// 				},
-// 			},
-// 		},
-// 		Func: func(input *transferInputVals, expected *transferExpectedVals) {
-// 			mockBackendSrc := &MockSortTableBackendOps{
-// 				ErrorRval:    input.Error,
-// 				HashKeysRval: input.HashKeys,
-// 				DataRowsRval: input.DataRows,
-// 			}
-// 			srcTable := purchase.NewTable()
-// 			srcTable.SetBackend(mockBackendSrc)
+func TestSortTableGetWithSortComparator(t *testing.T) {
+	type getInputVals struct {
+		Error        error
+		HashKey      *purchase.HashKey
+		Comparator   *purchase.SortKeyComparator
+		DataRowsRval []mutator.MappedFieldValues
+		SortKeysRval []mutator.MappedFieldValues
+	}
 
-// 			mockBackendDest := &MockSortTableBackendOps{
-// 				HashKeysRval: input.HashKeys,
-// 			}
-// 			destTable := purchase.NewTable()
-// 			destTable.SetBackend(mockBackendDest)
+	type getExpectedVals struct {
+		Error          error
+		ComparatorUsed mutator.MappedFieldValues
+		DataRows       []*purchase.DataRow
+		SortKeys       []*purchase.SortKey
+	}
 
-// 			err := srcTable.TransferTo(destTable, 10)
-// 			testutils.AssertErrorEquals(t, expected.Error, err)
+	mockError := errors.New("test")
+	currentTime := time.Now()
 
-// 			if expected.Error != nil {
-// 				return
-// 			}
+	tests := testutils.Tests[*getInputVals, *getExpectedVals]{
+		Cases: []testutils.TestCase[*getInputVals, *getExpectedVals]{
+			{
+				Name: "successfully gets",
+				Input: &getInputVals{
+					Error:   nil,
+					HashKey: &purchase.HashKey{CustomerName: "test1"},
+					Comparator: &purchase.SortKeyComparator{
+						PurchaseTime: compare.Eq(currentTime),
+					},
+					DataRowsRval: []mutator.MappedFieldValues{
+						{purchase.PriceKey: 9.99},
+						{purchase.PriceKey: 10.99},
+					},
+					SortKeysRval: []mutator.MappedFieldValues{
+						{purchase.PurchaseTimeKey: currentTime},
+						{purchase.PurchaseTimeKey: currentTime},
+					},
+				},
+				Expected: &getExpectedVals{
+					Error: nil,
+					ComparatorUsed: mutator.MappedFieldValues{
+						purchase.PurchaseTimeKey: &compare.Comparator[fields.Time]{
+							Op:     compare.EQ,
+							Values: []fields.Time{currentTime},
+						},
+					},
+					DataRows: []*purchase.DataRow{
+						{Price: 9.99},
+						{Price: 10.99},
+					},
+					SortKeys: []*purchase.SortKey{
+						{PurchaseTime: currentTime},
+						{PurchaseTime: currentTime},
+					},
+				},
+			},
+			{
+				Name: "enforces error for wrong sort key order",
+				Input: &getInputVals{
+					Error:   nil,
+					HashKey: &purchase.HashKey{CustomerName: "test1"},
+					Comparator: &purchase.SortKeyComparator{
+						ItemName: compare.Eq("test"),
+					},
+					DataRowsRval: []mutator.MappedFieldValues{},
+					SortKeysRval: []mutator.MappedFieldValues{},
+				},
+				Expected: &getExpectedVals{
+					Error:          datastore.ComparatorMissingFieldsError,
+					ComparatorUsed: nil,
+					DataRows:       nil,
+					SortKeys:       nil,
+				},
+			},
+			{
+				Name: "returns error for data row and sort key mismatch",
+				Input: &getInputVals{
+					Error:   nil,
+					HashKey: &purchase.HashKey{CustomerName: "test1"},
+					Comparator: &purchase.SortKeyComparator{
+						PurchaseTime: compare.Eq(currentTime),
+					},
+					DataRowsRval: []mutator.MappedFieldValues{
+						{purchase.PriceKey: 9.99},
+					},
+					SortKeysRval: []mutator.MappedFieldValues{
+						{purchase.PurchaseTimeKey: currentTime},
+						{purchase.PurchaseTimeKey: currentTime},
+					},
+				},
+				Expected: &getExpectedVals{
+					Error:          datastore.OutputLengthMismatchError,
+					ComparatorUsed: nil,
+					DataRows:       nil,
+					SortKeys:       nil,
+				},
+			},
+			{
+				Name: "returns error",
+				Input: &getInputVals{
+					Error:        mockError,
+					HashKey:      &purchase.HashKey{},
+					Comparator:   &purchase.SortKeyComparator{},
+					DataRowsRval: []mutator.MappedFieldValues{},
+					SortKeysRval: []mutator.MappedFieldValues{},
+				},
+				Expected: &getExpectedVals{
+					Error:          mockError,
+					ComparatorUsed: nil,
+					DataRows:       nil,
+					SortKeys:       nil,
+				},
+			},
+		},
+		Func: func(input *getInputVals, expected *getExpectedVals) {
+			mockBackend := &MockSortTableBackendOps{
+				ErrorRval:    input.Error,
+				DataRowsRval: input.DataRowsRval,
+				SortKeysRval: input.SortKeysRval,
+			}
+			table := purchase.NewTable()
+			table.SetBackend(mockBackend)
 
-// 			testutils.AssertEquals(t, len(input.HashKeys), len(mockBackendDest.HashKeysInput))
-// 			for i := range input.DataRows {
-// 				AssertPurchaseHashKeyFieldsEqualOrDefault(t, input.HashKeys[i], mockBackendDest.HashKeysInput[i])
-// 			}
+			actualDataRows, actualSortKeys, err := table.GetWithSortComparator(input.HashKey, input.Comparator)
+			testutils.AssertErrorEquals(t, expected.Error, err)
 
-// 			testutils.AssertEquals(t, len(input.DataRows), len(mockBackendDest.DataRowsInput))
-// 			for i := range input.DataRows {
-// 				AssertPurchaseDataRowFieldsEqualOrDefault(t, input.DataRows[i], mockBackendDest.DataRowsInput[i])
-// 			}
-// 		},
-// 	}
+			if expected.ComparatorUsed != nil {
+				AssertPurchaseSortKeyComparatorFieldsEqualOrDefault(t, expected.ComparatorUsed, mockBackend.ComparatorInput)
+			}
 
-// 	tests.Run(t)
-// }
+			testutils.AssertEquals(t, len(expected.DataRows), len(actualDataRows))
+			for i := range expected.DataRows {
+				AssertPurchaseDataRowEquals(t, expected.DataRows[i], actualDataRows[i])
+			}
+
+			testutils.AssertEquals(t, len(expected.SortKeys), len(actualSortKeys))
+			for i := range expected.SortKeys {
+				AssertPurchaseSortKeyEquals(t, expected.SortKeys[i], actualSortKeys[i])
+			}
+		},
+	}
+
+	tests.Run(t)
+}
+
+func TestSortTableTransferTo(t *testing.T) {
+	type transferInputVals struct {
+		Error    error
+		HashKeys []mutator.MappedFieldValues
+		SortKeys []mutator.MappedFieldValues
+		DataRows []mutator.MappedFieldValues
+	}
+
+	type transferExpectedVals struct {
+		Error error
+	}
+
+	mockError := errors.New("test")
+
+	tests := testutils.Tests[*transferInputVals, *transferExpectedVals]{
+		Cases: []testutils.TestCase[*transferInputVals, *transferExpectedVals]{
+			{
+				Name: "transfers good values",
+				Input: &transferInputVals{
+					Error: nil,
+					HashKeys: []mutator.MappedFieldValues{
+						{purchase.CustomerNameKey: "test1"},
+						{purchase.CustomerNameKey: "test2"},
+					},
+					SortKeys: []mutator.MappedFieldValues{
+						{purchase.ItemNameKey: "test1"},
+						{purchase.ItemNameKey: "test2"},
+					},
+					DataRows: []mutator.MappedFieldValues{
+						{purchase.PriceKey: 9.99},
+						{purchase.PriceKey: 10.99},
+					},
+				},
+				Expected: &transferExpectedVals{
+					Error: nil,
+				},
+			},
+			{
+				Name: "returns error for mismatched types",
+				Input: &transferInputVals{
+					Error: nil,
+					HashKeys: []mutator.MappedFieldValues{
+						{purchase.CustomerNameKey: 0},
+						{purchase.CustomerNameKey: "test2"},
+					},
+					SortKeys: []mutator.MappedFieldValues{
+						{purchase.ItemNameKey: "test1"},
+						{purchase.ItemNameKey: "test2"},
+					},
+					DataRows: []mutator.MappedFieldValues{
+						{purchase.PriceKey: 9.99},
+						{purchase.PriceKey: 10.99},
+					},
+				},
+				Expected: &transferExpectedVals{
+					Error: mutator.SetFieldTypeError,
+				},
+			},
+			{
+				Name: "handles error from backend",
+				Input: &transferInputVals{
+					Error: mockError,
+					HashKeys: []mutator.MappedFieldValues{
+						{purchase.CustomerNameKey: "test1"},
+					},
+					SortKeys: []mutator.MappedFieldValues{
+						{purchase.ItemNameKey: "test1"},
+					},
+					DataRows: []mutator.MappedFieldValues{
+						{purchase.PriceKey: 9.99},
+					},
+				},
+				Expected: &transferExpectedVals{
+					Error: mockError,
+				},
+			},
+		},
+		Func: func(input *transferInputVals, expected *transferExpectedVals) {
+			mockBackendSrc := &MockSortTableBackendOps{
+				ErrorRval:    input.Error,
+				HashKeysRval: input.HashKeys,
+				SortKeysRval: input.SortKeys,
+				DataRowsRval: input.DataRows,
+			}
+			srcTable := purchase.NewTable()
+			srcTable.SetBackend(mockBackendSrc)
+
+			mockBackendDest := &MockSortTableBackendOps{
+				HashKeysRval: input.HashKeys,
+				SortKeysRval: input.SortKeys,
+			}
+			destTable := purchase.NewTable()
+			destTable.SetBackend(mockBackendDest)
+
+			err := srcTable.TransferTo(destTable, 10)
+			testutils.AssertErrorEquals(t, expected.Error, err)
+
+			if expected.Error != nil {
+				return
+			}
+
+			testutils.AssertEquals(t, len(input.HashKeys), len(mockBackendDest.HashKeysInput))
+			for i := range input.HashKeys {
+				AssertPurchaseHashKeyFieldsEqualOrDefault(t, input.HashKeys[i], mockBackendDest.HashKeysInput[i])
+			}
+
+			testutils.AssertEquals(t, len(input.SortKeys), len(mockBackendDest.SortKeysInput))
+			for i := range input.SortKeys {
+				AssertPurchaseSortKeyFieldsEqualOrDefault(t, input.SortKeys[i], mockBackendDest.SortKeysInput[i])
+			}
+
+			testutils.AssertEquals(t, len(input.DataRows), len(mockBackendDest.DataRowsInput))
+			for i := range input.DataRows {
+				AssertPurchaseDataRowFieldsEqualOrDefault(t, input.DataRows[i], mockBackendDest.DataRowsInput[i])
+			}
+		},
+	}
+
+	tests.Run(t)
+}

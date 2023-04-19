@@ -1,6 +1,9 @@
 package datastore
 
-import "github.com/sophielizg/go-libs/datastore/mutator"
+import (
+	"github.com/sophielizg/go-libs/datastore/compare"
+	"github.com/sophielizg/go-libs/datastore/mutator"
+)
 
 // A key-value table that supports a partition key to sort values
 type SortTable[V any, PV mutator.Mutatable[V], H any, PH mutator.Mutatable[H], S any, PS mutator.Mutatable[S], C any, PC mutator.Mutatable[C]] struct {
@@ -121,7 +124,7 @@ func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) Update(hashKey PH, sortKey PS, d
 
 // Updates multiple values with the specified hash and sort keys
 func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) UpdateMultiple(hashKeys []PH, sortKeys []PS, data []PV) error {
-	if len(hashKeys) != len(data) {
+	if len(hashKeys) != len(sortKeys) || len(hashKeys) != len(data) {
 		return InputLengthMismatchError
 	}
 
@@ -139,7 +142,7 @@ func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) Delete(hashKey PH, sortKey PS) e
 
 // Deletes multiple value with the specified hash and sort keys
 func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) DeleteMultiple(hashKeys []PH, sortKeys []PS) error {
-	if len(hashKeys) != len(sortKeys) {
+	if len(hashKeys) != len(sortKeys) || len(hashKeys) != len(sortKeys) {
 		return InputLengthMismatchError
 	}
 
@@ -153,10 +156,12 @@ func (t *SortTable[V, PV, H, PH, S, PS, C, PC]) validateComparator(comparator PC
 	foundEmpty := false
 
 	for _, fieldName := range t.Settings.SortKeySettings.FieldOrder {
-		if comparator.Mutator().GetField(fieldName) != nil {
-			continue
-		} else if foundEmpty {
-			return ComparatorMissingFieldsError
+		if !compare.IsNilComparator(comparator.Mutator().GetField(fieldName)) {
+			if foundEmpty {
+				return ComparatorMissingFieldsError
+			} else {
+				continue
+			}
 		}
 
 		foundEmpty = true

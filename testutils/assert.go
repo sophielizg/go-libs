@@ -54,3 +54,11 @@ func AssertError(t *testing.T, err error) {
 		t.Errorf("want: error; got: %v", err)
 	}
 }
+
+func AssertNull[T any](t *testing.T, nullable *T) {
+	t.Helper()
+
+	if nullable != nil {
+		t.Errorf("want: %v; got: %v", nil, nullable)
+	}
+}

@@ -5,6 +5,28 @@ type Comparator[T Comparable] struct {
 	Values []T
 }
 
+func (c1 *Comparator[T]) Equals(c2 *Comparator[T]) bool {
+	if c1.Op != c2.Op {
+		return false
+	}
+
+	if c1.Values == nil && c2.Values == nil {
+		return true
+	} else if c1.Values == nil || c2.Values == nil {
+		return false
+	} else if len(c1.Values) != len(c2.Values) {
+		return false
+	}
+
+	for i := range c1.Values {
+		if c1.Values[i] != c2.Values[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func Eq[T Comparable](value T) *Comparator[T] {
 	return &Comparator[T]{
 		Op:     EQ,
@@ -41,9 +63,9 @@ func Gte[T Comparable](value T) *Comparator[T] {
 }
 
 // between is inclusive
-func Btw[T Comparable](value T) *Comparator[T] {
+func Btw[T Comparable](lower, upper T) *Comparator[T] {
 	return &Comparator[T]{
 		Op:     BTW,
-		Values: []T{value},
+		Values: []T{lower, upper},
 	}
 }
