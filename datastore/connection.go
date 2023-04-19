@@ -69,3 +69,23 @@ func RegisterSortTable[C Connection, TB SortTableBackend[C], T Table[SortTableBa
 		return tableBackend.Register()
 	}
 }
+
+func RegisterQueue[C Connection, TB QueueBackend[C], T Table[QueueBackendOps]](table T, tableBackend TB) func(*ConnectionGroup[C]) error {
+	return func(g *ConnectionGroup[C]) error {
+		table.SetBackend(tableBackend)
+		table.Init()
+		tableBackend.SetConnection(g.Conn)
+		tableBackend.SetSettings(table.GetSettings())
+		return tableBackend.Register()
+	}
+}
+
+func RegisterTopic[C Connection, TB TopicBackend[C], T Table[TopicBackendOps]](table T, tableBackend TB) func(*ConnectionGroup[C]) error {
+	return func(g *ConnectionGroup[C]) error {
+		table.SetBackend(tableBackend)
+		table.Init()
+		tableBackend.SetConnection(g.Conn)
+		tableBackend.SetSettings(table.GetSettings())
+		return tableBackend.Register()
+	}
+}

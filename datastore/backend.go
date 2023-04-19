@@ -83,3 +83,8 @@ type TopicBackendOps interface {
 	AckSuccess(subscriptionId string, messageId string) error
 	AckFailure(subscriptionId string, messageId string) error
 }
+
+type TopicBackend[C Connection] interface {
+	TableBackend[C]
+	TopicBackendOps
+}
