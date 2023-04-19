@@ -72,8 +72,14 @@ type QueueBackend[C Connection] interface {
 }
 
 type TopicBackendOps interface {
-	// Data operations
+	// Topic operations
 	Publish(messages []mutator.MappedFieldValues) error
-	Subscribe(subscriptionId string) (QueueBackendOps, string, error)
+	Subscribe(subscriptionId string) error
 	Unsubscribe(subscriptionId string) error
+
+	// Subscription operations
+	HasMessage(subscriptionId string) (bool, error)
+	RecieveMessage(subscriptionId string) (string, mutator.MappedFieldValues, error)
+	AckSuccess(subscriptionId string, messageId string) error
+	AckFailure(subscriptionId string, messageId string) error
 }
