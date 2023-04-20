@@ -103,7 +103,7 @@ func (b *MockAppendTableBackendOps) AddMultiple(data []mutator.MappedFieldValues
 // TESTS
 
 func TestAppendTableSettings(t *testing.T) {
-	table := logtable.NewLogTable()
+	table := logtable.New()
 	table.Init()
 	actual := table.GetSettings()
 
@@ -178,7 +178,7 @@ func TestAppendTableScan(t *testing.T) {
 				ErrorRval:    input.Error,
 				DataRowsRval: input.DataRows,
 			}
-			table := logtable.NewLogTable()
+			table := logtable.New()
 			table.SetBackend(mockBackend)
 
 			actualScanFieldsChan, actualErrorChan := table.Scan(10)
@@ -264,7 +264,7 @@ func TestAppendTableAdd(t *testing.T) {
 			mockBackend := &MockAppendTableBackendOps{
 				ErrorRval: input.Error,
 			}
-			table := logtable.NewLogTable()
+			table := logtable.New()
 			table.SetBackend(mockBackend)
 
 			err := table.Add(input.DataRows...)
@@ -337,11 +337,11 @@ func TestAppendTableTransferTo(t *testing.T) {
 				ErrorRval:    input.Error,
 				DataRowsRval: input.DataRows,
 			}
-			srcTable := logtable.NewLogTable()
+			srcTable := logtable.New()
 			srcTable.SetBackend(mockBackendSrc)
 
 			mockBackendDest := &MockAppendTableBackendOps{}
-			destTable := logtable.NewLogTable()
+			destTable := logtable.New()
 			destTable.SetBackend(mockBackendDest)
 
 			err := srcTable.TransferTo(destTable, 10)

@@ -7,22 +7,6 @@ import (
 
 type AppendTable = []mutator.MappedFieldValues
 
-type Connection struct {
-	table map[string]*AppendTable
-}
-
-func (c *Connection) Close() {}
-
-func (c *Connection) GetTable(settings *datastore.TableSettings) *AppendTable {
-	return c.table[settings.Name]
-}
-
-func NewConnection() *Connection {
-	return &Connection{
-		table: map[string]*AppendTable{},
-	}
-}
-
 type AppendTableBackend struct {
 	conn     *Connection
 	settings *datastore.TableSettings
@@ -37,7 +21,11 @@ func (b *AppendTableBackend) SetConnection(conn *Connection) {
 }
 
 func (b *AppendTableBackend) Register() error {
-	if table := b.conn.GetTable(b.settings); table == nil {
+	if err := validateAutoGenerateSettings(b.settings.DataRowSettings); err != nil {
+		return err
+	}
+
+	if table := b.conn.GetAppendTable(b.settings); table == nil {
 		table = &AppendTable{}
 	}
 
@@ -45,7 +33,7 @@ func (b *AppendTableBackend) Register() error {
 }
 
 func (b *AppendTableBackend) Drop() error {
-	b.conn.table[b.settings.Name] = nil
+	b.conn.DropAppendTable(b.settings)
 	return nil
 }
 
@@ -57,7 +45,7 @@ func (b *AppendTableBackend) Scan(batchSize int) (chan *datastore.ScanFields, ch
 		defer close(outChan)
 		defer close(errorChan)
 
-		for _, fields := range *b.conn.GetTable(b.settings) {
+		for _, fields := range *b.conn.GetAppendTable(b.settings) {
 			outChan <- &datastore.ScanFields{DataRow: fields}
 		}
 	}()
@@ -66,7 +54,7 @@ func (b *AppendTableBackend) Scan(batchSize int) (chan *datastore.ScanFields, ch
 }
 
 func (b *AppendTableBackend) AddMultiple(data []mutator.MappedFieldValues) error {
-	table := b.conn.GetTable(b.settings)
+	table := b.conn.GetAppendTable(b.settings)
 	*table = append(*table, data...)
 	return nil
 }

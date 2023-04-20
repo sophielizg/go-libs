@@ -20,6 +20,11 @@ func (f MutatableFactory[M, PM]) CreateFromFieldsList(fieldsList []MappedFieldVa
 	mutatables := make([]PM, len(fieldsList))
 
 	for i, fields := range fieldsList {
+		if fields == nil {
+			mutatables[i] = nil
+			continue
+		}
+
 		var err error
 		mutatables[i], err = f.CreateFromFields(fields)
 		if err != nil {
