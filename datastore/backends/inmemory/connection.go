@@ -4,7 +4,7 @@ import "github.com/sophielizg/go-libs/datastore"
 
 type Connection struct {
 	appendTables map[string]*AppendTable
-	hashTables   map[string]*HashTable
+	hashTables   map[string]HashTable
 	queues       map[string]*Queue
 }
 
@@ -18,8 +18,12 @@ func (c *Connection) DropAppendTable(settings *datastore.TableSettings) {
 	c.appendTables[settings.Name] = nil
 }
 
-func (c *Connection) GetHashTable(settings *datastore.TableSettings) *HashTable {
+func (c *Connection) GetHashTable(settings *datastore.TableSettings) HashTable {
 	return c.hashTables[settings.Name]
+}
+
+func (c *Connection) SetHashTable(settings *datastore.TableSettings, newTable HashTable) {
+	c.hashTables[settings.Name] = newTable
 }
 
 func (c *Connection) DropHashTable(settings *datastore.TableSettings) {
@@ -37,7 +41,7 @@ func (c *Connection) DropQueue(settings *datastore.TableSettings) {
 func NewConnection() *Connection {
 	return &Connection{
 		appendTables: map[string]*AppendTable{},
-		hashTables:   map[string]*HashTable{},
+		hashTables:   map[string]HashTable{},
 		queues:       map[string]*Queue{},
 	}
 }
