@@ -2,20 +2,13 @@ package logtable
 
 import "github.com/sophielizg/go-libs/datastore"
 
-func CreateLogTable(backend datastore.AppendTableBackend) *LogTable {
+type LogTable = datastore.AppendTable[DataRow, *DataRow]
+
+func New(tableName string) *LogTable {
 	return &LogTable{
-		table: datastore.AppendTable[*LogDataRow]{
-			Name:           "Log",
-			DataRowFactory: &logDataRowFactory{},
-			Backend:        backend,
-		},
+		Settings: datastore.NewTableSettings(
+			datastore.WithTableName(tableName),
+			datastore.WithDataRowSettings(&DataRowSettings),
+		),
 	}
-}
-
-type LogTable struct {
-	table datastore.AppendTable[*LogDataRow]
-}
-
-func (t *LogTable) Append(data ...*LogDataRow) error {
-	return t.table.Append(data...)
 }

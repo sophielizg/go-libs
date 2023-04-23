@@ -1,61 +1,50 @@
 package logtable
 
 import (
-	"time"
-
-	"github.com/sophielizg/go-libs/datastore"
+	"github.com/sophielizg/go-libs/datastore/fields"
+	"github.com/sophielizg/go-libs/datastore/mutator"
 )
 
-type LogDataRow struct {
-	Message     string
-	LoggerName  string
-	Level       string
-	Stack       string
-	Fields      map[string]interface{}
-	CreatedTime time.Time
+const (
+	MessageKey     = "Message"
+	LoggerNameKey  = "LoggerName"
+	LevelKey       = "Level"
+	StackKey       = "Stack"
+	FieldsKey      = "Fields"
+	CreatedTimeKey = "CreatedTime"
+)
+
+type DataRow struct {
+	Message      fields.String
+	LoggerName   fields.String
+	Level        fields.String
+	Stack        fields.String
+	Fields       fields.JsonMap
+	CreatedTime  fields.Time
+	fieldMutator *mutator.FieldMutator
 }
 
-func (d *LogDataRow) GetFields() datastore.DataRowFields {
-	return datastore.DataRowFields{
-		"Message":     d.Message,
-		"LoggerName":  d.LoggerName,
-		"Level":       d.Level,
-		"Stack":       d.Stack,
-		"Fields":      d.Fields,
-		"CreatedTime": d.CreatedTime,
-	}
-}
-
-type logDataRowFactory struct {
-	fieldTypes datastore.DataRowFieldTypes
-}
-
-func (f *logDataRowFactory) CreateDefault() *LogDataRow {
-	return nil
-}
-
-func (f *logDataRowFactory) CreateFromFields(fields datastore.DataRowFields) (*LogDataRow, error) {
-	return &LogDataRow{
-		Message:     fields["Message"].(string),
-		LoggerName:  fields["LoggerName"].(string),
-		Level:       fields["Level"].(string),
-		Stack:       fields["Stack"].(string),
-		Fields:      fields["Fields"].(map[string]interface{}),
-		CreatedTime: fields["CreatedTime"].(time.Time),
-	}, nil
-}
-
-func (f *logDataRowFactory) GetFieldTypes() datastore.DataRowFieldTypes {
-	if f.fieldTypes == nil {
-		f.fieldTypes = datastore.DataRowFieldTypes{
-			"Message":     &datastore.StringField{NumChars: 256},
-			"LoggerName":  &datastore.StringField{NumChars: 64},
-			"Level":       &datastore.StringField{NumChars: 8},
-			"Stack":       &datastore.StringField{NumChars: 1024},
-			"Fields":      &datastore.JsonField{},
-			"CreatedTime": &datastore.TimeField{},
-		}
+func (v *DataRow) Mutator() *mutator.FieldMutator {
+	if v.fieldMutator == nil {
+		v.fieldMutator = mutator.NewFieldMutator(
+			mutator.WithAddress(MessageKey, &v.Message),
+			mutator.WithAddress(LoggerNameKey, &v.LoggerName),
+			mutator.WithAddress(LevelKey, &v.Level),
+			mutator.WithAddress(StackKey, &v.Stack),
+			mutator.WithAddress(FieldsKey, &v.Fields),
+			mutator.WithAddress(CreatedTimeKey, &v.CreatedTime),
+		)
 	}
 
-	return f.fieldTypes
+	return v.fieldMutator
+}
+
+var DataRowSettings = fields.DataRowSettings{
+	FieldSettings: fields.NewFieldSettings(
+		fields.WithNumBytes(MessageKey, 255),
+		fields.WithNumBytes(LoggerNameKey, 63),
+		fields.WithNumBytes(LevelKey, 7),
+		fields.WithNumBytes(StackKey, 1023),
+	),
+	FieldOrder: fields.OrderedFieldKeys{LoggerNameKey, LevelKey, CreatedTimeKey, MessageKey, StackKey, FieldsKey},
 }

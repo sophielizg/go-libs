@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/sophielizg/go-libs/datastore"
 	"github.com/sophielizg/go-libs/logger/logtable"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -21,7 +20,7 @@ func (w *logTableWriter) Write(bytes []byte) (int, error) {
 		return 0, err
 	}
 
-	dataRow := &logtable.LogDataRow{}
+	dataRow := &logtable.DataRow{}
 
 	if val, ok := entry["Time"]; ok {
 		dataRow.CreatedTime = val.(time.Time)
@@ -53,20 +52,20 @@ func (w *logTableWriter) Write(bytes []byte) (int, error) {
 	}
 
 	dataRow.Fields = entry
-	w.logTable.Append(dataRow)
+	w.logTable.Add(dataRow)
 
 	return len(bytes), nil
 }
 
-func logTableCore(backend datastore.AppendTableBackend) zapcore.Core {
+func logTableCore(table *logtable.LogTable) zapcore.Core {
 	tablePriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		return lvl >= zapcore.InfoLevel
 	})
 
 	encoder := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
-	logTable := &logTableWriter{
-		logTable: logtable.CreateLogTable(backend),
+	writer := &logTableWriter{
+		logTable: table,
 	}
 
-	return zapcore.NewCore(encoder, zapcore.AddSync(logTable), tablePriority)
+	return zapcore.NewCore(encoder, zapcore.AddSync(writer), tablePriority)
 }

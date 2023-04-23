@@ -3,22 +3,23 @@ package zap
 import (
 	"os"
 
-	"github.com/sophielizg/go-libs/datastore"
+	"github.com/sophielizg/go-libs/logger/logtable"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-func CreateWithBackends(name string, backends ...datastore.AppendTableBackend) *Logger {
-	cores := make([]zapcore.Core, len(backends))
-
-	for i, backend := range backends {
-		cores[i] = logTableCore(backend)
-	}
-
-	return CreateWithCores(name, cores...)
+type zapConfig struct {
+	Name  string
+	Cores []zapcore.Core
 }
 
-func CreateWithCores(name string, cores ...zapcore.Core) *Logger {
+func Create(options ...func(*zapConfig)) *Logger {
+	config := &zapConfig{}
+
+	for _, option := range options {
+		option(config)
+	}
+
 	consoleHighPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		return lvl >= zapcore.ErrorLevel
 	})
@@ -30,13 +31,32 @@ func CreateWithCores(name string, cores ...zapcore.Core) *Logger {
 	consoleErrors := zapcore.Lock(os.Stderr)
 	consoleEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 
-	cores = append(cores, zapcore.NewCore(consoleEncoder, consoleErrors, consoleHighPriority))
-	cores = append(cores, zapcore.NewCore(consoleEncoder, consoleDebugging, consoleLowPriority))
+	config.Cores = append(config.Cores, zapcore.NewCore(consoleEncoder, consoleErrors, consoleHighPriority))
+	config.Cores = append(config.Cores, zapcore.NewCore(consoleEncoder, consoleDebugging, consoleLowPriority))
 
-	core := zapcore.NewTee(cores...)
+	core := zapcore.NewTee(config.Cores...)
 
-	logger := zap.New(core).Named(name)
+	logger := zap.New(core).Named(config.Name)
 	return &Logger{
 		sugar: logger.Sugar(),
+	}
+}
+
+func WithName(name string) func(config *zapConfig) {
+	return func(config *zapConfig) {
+		config.Name = name
+	}
+}
+
+func WithLogTable(table *logtable.LogTable) func(config *zapConfig) {
+	return func(config *zapConfig) {
+		core := logTableCore(table)
+		config.Cores = append(config.Cores, core)
+	}
+}
+
+func WithCore(core zapcore.Core) func(config *zapConfig) {
+	return func(config *zapConfig) {
+		config.Cores = append(config.Cores, core)
 	}
 }
