@@ -1,5 +1,5 @@
 package secrets
 
-type Provider interface {
+type Manager interface {
 	GetSecret(env string, id string) (string, error)
 }

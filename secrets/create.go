@@ -5,9 +5,9 @@ import (
 )
 
 type settings struct {
-	Env      string
-	Dir      string
-	Provider Provider
+	Env     string
+	Dir     string
+	Manager Manager
 }
 
 func New(options ...func(*settings)) (map[string]string, error) {
@@ -24,7 +24,7 @@ func New(options ...func(*settings)) (map[string]string, error) {
 	}
 
 	for key, id := range secrets {
-		secrets[key], err = s.Provider.GetSecret(s.Env, id)
+		secrets[key], err = s.Manager.GetSecret(s.Env, id)
 		if err != nil {
 			return nil, err
 		}
@@ -45,8 +45,8 @@ func WithDir(dir string) func(*settings) {
 	}
 }
 
-func WithProvider(provider Provider) func(*settings) {
+func WithManager(manager Manager) func(*settings) {
 	return func(s *settings) {
-		s.Provider = provider
+		s.Manager = manager
 	}
 }
