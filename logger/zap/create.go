@@ -13,7 +13,7 @@ type zapConfig struct {
 	Cores []zapcore.Core
 }
 
-func Create(options ...func(*zapConfig)) *Logger {
+func New(options ...func(*zapConfig)) *Logger {
 	config := &zapConfig{}
 
 	for _, option := range options {
