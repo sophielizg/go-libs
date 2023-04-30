@@ -1,8 +1,12 @@
 package datastore
 
-func transfer[D any](batchSize int, dataChan chan D, errorChan chan error, insertFunc func([]D) error) error {
+type Transferable[E any] interface {
+	Add(entries ...E) ([]E, error)
+}
+
+func transfer[E any](batchSize int, dataChan chan E, errorChan chan error, destTable Transferable[E]) error {
 	for {
-		buf := make([]D, 0, batchSize)
+		buf := make([]E, 0, batchSize)
 
 		for {
 			select {
@@ -28,7 +32,7 @@ func transfer[D any](batchSize int, dataChan chan D, errorChan chan error, inser
 		}
 
 		if len(buf) > 0 {
-			err := insertFunc(buf)
+			_, err := destTable.Add(buf...)
 			if err != nil {
 				return err
 			}

@@ -1,6 +1,9 @@
 package datastore
 
-import "github.com/sophielizg/go-libs/datastore/mutator"
+import (
+	"github.com/sophielizg/go-libs/datastore/mutator"
+	"github.com/sophielizg/go-libs/datastore/queries"
+)
 
 type TableBackend[C Connection] interface {
 	// Configuration
@@ -12,79 +15,64 @@ type TableBackend[C Connection] interface {
 	Drop() error
 }
 
-type AppendTableBackendOps interface {
-	// Data operations
-	Scan(batchSize int) (chan *ScanFields, chan error)
-	AddMultiple(data []mutator.MappedFieldValues) error
+type AppendTableBackendQueries interface {
+	queries.ScannableBackend
+	queries.AddableBackend
+	queries.TransferableBackend
 }
 
 type AppendTableBackend[C Connection] interface {
 	TableBackend[C]
-	AppendTableBackendOps
+	AppendTableBackendQueries
 }
 
-type HashTableBackendOps interface {
-	// Data operations
-	Scan(batchSize int) (chan *ScanFields, chan error)
-
-	GetMultiple(hashKeys []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error)
-	AddMultiple(hashKeys []mutator.MappedFieldValues, data []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error)
-	UpdateMultiple(hashKeys []mutator.MappedFieldValues, data []mutator.MappedFieldValues) error
-	DeleteMultiple(hashKeys []mutator.MappedFieldValues) error
+type HashTableBackendQueries interface {
+	queries.ScannableBackend
+	queries.CountableBackend
+	queries.CRUDableBackend
+	queries.TransferableBackend
 }
 
 type HashTableBackend[C Connection] interface {
 	TableBackend[C]
-	HashTableBackendOps
+	HashTableBackendQueries
 }
 
-type SortTableBackendOps interface {
-	// Data operations
-	Scan(batchSize int) (chan *ScanFields, chan error)
-
-	GetMultiple(hashKeys []mutator.MappedFieldValues, sortKeys []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error)
-	AddMultiple(hashKeys []mutator.MappedFieldValues, sortKeys []mutator.MappedFieldValues, data []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, []mutator.MappedFieldValues, error)
-	UpdateMultiple(hashKeys []mutator.MappedFieldValues, sortKeys []mutator.MappedFieldValues, data []mutator.MappedFieldValues) error
-	DeleteMultiple(hashKeys []mutator.MappedFieldValues, sortKeys []mutator.MappedFieldValues) error
-
-	GetWithSortComparator(hashKey mutator.MappedFieldValues, comparator mutator.MappedFieldValues) ([]mutator.MappedFieldValues, []mutator.MappedFieldValues, error)
-	UpdateWithSortComparator(hashKey mutator.MappedFieldValues, comparator mutator.MappedFieldValues, data mutator.MappedFieldValues) error
-	DeleteWithSortComparator(hashKey mutator.MappedFieldValues, comparator mutator.MappedFieldValues) error
+type SortTableBackendQueries interface {
+	queries.ScannableBackend
+	queries.CountableBackend
+	queries.CRUDableBackend
+	queries.SortableBackend
+	queries.TransferableBackend
 }
 
 type SortTableBackend[C Connection] interface {
 	TableBackend[C]
-	SortTableBackendOps
+	SortTableBackendQueries
 }
 
-type QueueBackendOps interface {
-	// Data operations
-	Size() (int, error)
-	Push(messages []mutator.MappedFieldValues) error
-	Pop() (string, mutator.MappedFieldValues, error)
-	AckSuccess(messageId string) error
-	AckFailure(messageId string) error
+type QueueBackendQueries interface {
+	queries.CountableBackend
+	queries.MessageReceiveableBackend
+	SendMessage(messages []mutator.MappedFieldValues) error
 }
 
 type QueueBackend[C Connection] interface {
 	TableBackend[C]
-	QueueBackendOps
+	QueueBackendQueries
 }
 
-type TopicBackendOps interface {
-	// Topic operations
+type TopicBackendQueries interface {
 	Publish(messages []mutator.MappedFieldValues) error
-	Subscribe(subscriptionId string) error
-	Unsubscribe(subscriptionId string) error
+	Subscribe(subscriptionId string) (SubscriptionBackendQueries, error)
+}
 
-	// Subscription operations
-	HasMessage(subscriptionId string) (bool, error)
-	RecieveMessage(subscriptionId string) (string, mutator.MappedFieldValues, error)
-	AckSuccess(subscriptionId string, messageId string) error
-	AckFailure(subscriptionId string, messageId string) error
+type SubscriptionBackendQueries interface {
+	queries.MessageReceiveableBackend
+	Unsubscribe() error
 }
 
 type TopicBackend[C Connection] interface {
 	TableBackend[C]
-	TopicBackendOps
+	TopicBackendQueries
 }

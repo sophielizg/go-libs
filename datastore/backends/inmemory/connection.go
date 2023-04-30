@@ -3,15 +3,19 @@ package inmemory
 import "github.com/sophielizg/go-libs/datastore"
 
 type Connection struct {
-	appendTables map[string]*AppendTable
+	appendTables map[string]AppendTable
 	hashTables   map[string]HashTable
 	queues       map[string]*Queue
 }
 
 func (c *Connection) Close() {}
 
-func (c *Connection) GetAppendTable(settings *datastore.TableSettings) *AppendTable {
+func (c *Connection) GetAppendTable(settings *datastore.TableSettings) AppendTable {
 	return c.appendTables[settings.Name]
+}
+
+func (c *Connection) SetAppendTable(settings *datastore.TableSettings, newTable AppendTable) {
+	c.appendTables[settings.Name] = newTable
 }
 
 func (c *Connection) DropAppendTable(settings *datastore.TableSettings) {
@@ -40,7 +44,7 @@ func (c *Connection) DropQueue(settings *datastore.TableSettings) {
 
 func NewConnection() *Connection {
 	return &Connection{
-		appendTables: map[string]*AppendTable{},
+		appendTables: map[string]AppendTable{},
 		hashTables:   map[string]HashTable{},
 		queues:       map[string]*Queue{},
 	}

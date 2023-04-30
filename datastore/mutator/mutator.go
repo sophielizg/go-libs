@@ -2,6 +2,8 @@ package mutator
 
 import (
 	"errors"
+
+	"github.com/sophielizg/go-libs/utils"
 )
 
 var SetFieldTypeError = errors.New("unable to set field: invalid type")
@@ -70,4 +72,15 @@ func WithAddress[T any](key string, address *T) func(m *FieldMutator) {
 			return *address
 		}
 	}
+}
+
+func MergeFieldMutators(mutators ...*FieldMutator) *FieldMutator {
+	merged := NewFieldMutator()
+
+	for _, mutator := range mutators {
+		merged.fieldGetters = utils.MergeMaps(merged.fieldGetters, mutator.fieldGetters)
+		merged.fieldSetters = utils.MergeMaps(merged.fieldSetters, mutator.fieldSetters)
+	}
+
+	return merged
 }

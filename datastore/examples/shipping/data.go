@@ -15,7 +15,7 @@ const (
 	ShippingAddressKey = "ShippingAddress"
 )
 
-type DataRow struct {
+type Data struct {
 	Department      fields.String
 	Brand           fields.String
 	Name            fields.String
@@ -23,26 +23,21 @@ type DataRow struct {
 	Quantity        fields.Int
 	ShipmentTime    fields.NullTime
 	ShippingAddress fields.String
-	fieldMutator    *mutator.FieldMutator
 }
 
-func (v *DataRow) Mutator() *mutator.FieldMutator {
-	if v.fieldMutator == nil {
-		v.fieldMutator = mutator.NewFieldMutator(
-			mutator.WithAddress(DepartmentKey, &v.Department),
-			mutator.WithAddress(BrandKey, &v.Brand),
-			mutator.WithAddress(NameKey, &v.Name),
-			mutator.WithAddress(PurchaseTimeKey, &v.PurchaseTime),
-			mutator.WithAddress(QuantityKey, &v.Quantity),
-			mutator.WithAddress(ShipmentTimeKey, &v.ShipmentTime),
-			mutator.WithAddress(ShippingAddressKey, &v.ShippingAddress),
-		)
-	}
-
-	return v.fieldMutator
+func (v *Data) Mutator() *mutator.FieldMutator {
+	return mutator.NewFieldMutator(
+		mutator.WithAddress(DepartmentKey, &v.Department),
+		mutator.WithAddress(BrandKey, &v.Brand),
+		mutator.WithAddress(NameKey, &v.Name),
+		mutator.WithAddress(PurchaseTimeKey, &v.PurchaseTime),
+		mutator.WithAddress(QuantityKey, &v.Quantity),
+		mutator.WithAddress(ShipmentTimeKey, &v.ShipmentTime),
+		mutator.WithAddress(ShippingAddressKey, &v.ShippingAddress),
+	)
 }
 
-var DataRowSettings = fields.DataRowSettings{
+var DataSettings = &fields.RowSettings{
 	FieldSettings: fields.NewFieldSettings(
 		fields.WithNumBytes(DepartmentKey, 63),
 		fields.WithNumBytes(BrandKey, 63),

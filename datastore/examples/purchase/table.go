@@ -2,17 +2,15 @@ package purchase
 
 import "github.com/sophielizg/go-libs/datastore"
 
-type PurchaseTable = datastore.SortTable[DataRow, *DataRow, HashKey, *HashKey, SortKey, *SortKey, SortKeyComparator, *SortKeyComparator]
-
-type TableScan = datastore.SortTableScan[DataRow, *DataRow, HashKey, *HashKey, SortKey, *SortKey]
+type PurchaseTable = datastore.SortTable[Key, *Key, Entry, *Entry, SortComparator, *SortComparator]
 
 func NewTable() *PurchaseTable {
 	return &PurchaseTable{
 		Settings: datastore.NewTableSettings(
 			datastore.WithTableName("Purchase"),
-			datastore.WithDataRowSettings(&DataRowSettings),
-			datastore.WithHashKeySettings(&HashKeySettings),
-			datastore.WithSortKeySettings(&SortKeySettings),
+			datastore.WithDataSettings(DataSettings),
+			datastore.WithKeySettings(KeySettings),
+			datastore.WithSortFieldNames(SortFieldNames),
 		),
 	}
 }

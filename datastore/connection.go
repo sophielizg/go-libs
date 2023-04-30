@@ -40,7 +40,7 @@ type Table[B any] interface {
 	SetBackend(tableBackend B)
 }
 
-func RegisterAppendTable[C Connection, TB AppendTableBackend[C], T Table[AppendTableBackendOps]](table T, tableBackend TB) func(*ConnectionGroup[C]) error {
+func RegisterAppendTable[C Connection, TB AppendTableBackend[C], T Table[AppendTableBackendQueries]](table T, tableBackend TB) func(*ConnectionGroup[C]) error {
 	return func(g *ConnectionGroup[C]) error {
 		table.SetBackend(tableBackend)
 		table.Init()
@@ -50,7 +50,7 @@ func RegisterAppendTable[C Connection, TB AppendTableBackend[C], T Table[AppendT
 	}
 }
 
-func RegisterHashTable[C Connection, TB HashTableBackend[C], T Table[HashTableBackendOps]](table T, tableBackend TB) func(*ConnectionGroup[C]) error {
+func RegisterHashTable[C Connection, TB HashTableBackend[C], T Table[HashTableBackendQueries]](table T, tableBackend TB) func(*ConnectionGroup[C]) error {
 	return func(g *ConnectionGroup[C]) error {
 		table.SetBackend(tableBackend)
 		table.Init()
@@ -60,7 +60,7 @@ func RegisterHashTable[C Connection, TB HashTableBackend[C], T Table[HashTableBa
 	}
 }
 
-func RegisterSortTable[C Connection, TB SortTableBackend[C], T Table[SortTableBackendOps]](table T, tableBackend TB) func(*ConnectionGroup[C]) error {
+func RegisterSortTable[C Connection, TB SortTableBackend[C], T Table[SortTableBackendQueries]](table T, tableBackend TB) func(*ConnectionGroup[C]) error {
 	return func(g *ConnectionGroup[C]) error {
 		table.SetBackend(tableBackend)
 		table.Init()
@@ -70,7 +70,7 @@ func RegisterSortTable[C Connection, TB SortTableBackend[C], T Table[SortTableBa
 	}
 }
 
-func RegisterQueue[C Connection, TB QueueBackend[C], T Table[QueueBackendOps]](table T, tableBackend TB) func(*ConnectionGroup[C]) error {
+func RegisterQueue[C Connection, TB QueueBackend[C], T Table[QueueBackendQueries]](table T, tableBackend TB) func(*ConnectionGroup[C]) error {
 	return func(g *ConnectionGroup[C]) error {
 		table.SetBackend(tableBackend)
 		table.Init()
@@ -80,7 +80,7 @@ func RegisterQueue[C Connection, TB QueueBackend[C], T Table[QueueBackendOps]](t
 	}
 }
 
-func RegisterTopic[C Connection, TB TopicBackend[C], T Table[TopicBackendOps]](table T, tableBackend TB) func(*ConnectionGroup[C]) error {
+func RegisterTopic[C Connection, TB TopicBackend[C], T Table[TopicBackendQueries]](table T, tableBackend TB) func(*ConnectionGroup[C]) error {
 	return func(g *ConnectionGroup[C]) error {
 		table.SetBackend(tableBackend)
 		table.Init()

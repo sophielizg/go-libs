@@ -12,7 +12,7 @@ import (
 
 // HELPERS
 
-func AssertShippingDataRowEquals(t *testing.T, expected, actual *shipping.DataRow) {
+func AssertShippingMessageEquals(t *testing.T, expected, actual *shipping.Message) {
 	t.Helper()
 	testutils.AssertEquals(t, expected.Department, actual.Department)
 	testutils.AssertEquals(t, expected.Brand, actual.Brand)
@@ -23,7 +23,7 @@ func AssertShippingDataRowEquals(t *testing.T, expected, actual *shipping.DataRo
 	testutils.AssertEquals(t, expected.ShippingAddress, actual.ShippingAddress)
 }
 
-func AssertShippingDataRowFieldsEqualOrDefault(t *testing.T, expected, actual mutator.MappedFieldValues) {
+func AssertShippingMessageFieldsEqualOrDefault(t *testing.T, expected, actual mutator.MappedFieldValues) {
 	t.Helper()
 
 	expectedDepartmentVal, expectedOk := expected[shipping.DepartmentKey].(fields.String)
@@ -103,8 +103,8 @@ type MockQueueBackendOps struct {
 	ErrorRval     error
 	SizeRval      int
 	MessageIdRval string
-	DataRowRval   mutator.MappedFieldValues
-	DataRowsInput []mutator.MappedFieldValues
+	MessageRval   mutator.MappedFieldValues
+	MessagesInput []mutator.MappedFieldValues
 }
 
 func (q *MockQueueBackendOps) Size() (int, error) {
@@ -112,13 +112,13 @@ func (q *MockQueueBackendOps) Size() (int, error) {
 }
 
 func (q *MockQueueBackendOps) Push(messages []mutator.MappedFieldValues) error {
-	q.DataRowsInput = messages
+	q.MessagesInput = messages
 	return q.ErrorRval
 }
 
 func (q *MockQueueBackendOps) Pop() (string, mutator.MappedFieldValues, error) {
 	q.SizeRval -= 1
-	return q.MessageIdRval, q.DataRowRval, q.ErrorRval
+	return q.MessageIdRval, q.MessageRval, q.ErrorRval
 }
 
 func (q *MockQueueBackendOps) AckSuccess(messageId string) error {
@@ -137,22 +137,22 @@ func TestQueueSettings(t *testing.T) {
 	actual := queue.GetSettings()
 
 	testutils.AssertEquals(t, "PendingShipment", actual.Name)
-	testutils.AssertEquals(t, &shipping.DataRowSettings, actual.DataRowSettings)
+	testutils.AssertEquals(t, &shipping.MessageSettings, actual.DataSettings)
 
 	// Check that defaults are generated
-	AssertShippingDataRowFieldsEqualOrDefault(t, mutator.MappedFieldValues{}, actual.DataRowSettings.EmptyValues)
+	AssertShippingMessageFieldsEqualOrDefault(t, mutator.MappedFieldValues{}, actual.EmptyValues)
 }
 
 func TestQueuePop(t *testing.T) {
 	type popInputVals struct {
 		MessageId string
-		DataRow   mutator.MappedFieldValues
+		Message   mutator.MappedFieldValues
 		Error     error
 	}
 
 	type popExpectedVals struct {
 		MessageId string
-		DataRow   *shipping.DataRow
+		Message   *shipping.Message
 		Error     error
 	}
 
@@ -164,7 +164,7 @@ func TestQueuePop(t *testing.T) {
 				Name: "successfully pops",
 				Input: &popInputVals{
 					MessageId: "testId",
-					DataRow: mutator.MappedFieldValues{
+					Message: mutator.MappedFieldValues{
 						shipping.NameKey:            "test name",
 						shipping.QuantityKey:        2,
 						shipping.ShippingAddressKey: "test address",
@@ -173,7 +173,7 @@ func TestQueuePop(t *testing.T) {
 				},
 				Expected: &popExpectedVals{
 					MessageId: "testId",
-					DataRow: &shipping.DataRow{
+					Message: &shipping.Message{
 						Name:            "test name",
 						Quantity:        2,
 						ShippingAddress: "test address",
@@ -185,12 +185,12 @@ func TestQueuePop(t *testing.T) {
 				Name: "returns error",
 				Input: &popInputVals{
 					MessageId: "",
-					DataRow:   mutator.MappedFieldValues{},
+					Message:   mutator.MappedFieldValues{},
 					Error:     mockError,
 				},
 				Expected: &popExpectedVals{
 					MessageId: "",
-					DataRow:   nil,
+					Message:   nil,
 					Error:     mockError,
 				},
 			},
@@ -198,19 +198,19 @@ func TestQueuePop(t *testing.T) {
 		Func: func(input *popInputVals, expected *popExpectedVals) {
 			mockBackend := &MockQueueBackendOps{
 				MessageIdRval: input.MessageId,
-				DataRowRval:   input.DataRow,
+				MessageRval:   input.Message,
 				ErrorRval:     input.Error,
 			}
 			queue := shipping.NewPendingShipmentQueue()
 			queue.SetBackend(mockBackend)
 
-			actualMessageId, actualDataRow, err := queue.Pop()
+			actualMessageId, actualMessage, err := queue.Pop()
 			testutils.AssertEquals(t, expected.MessageId, actualMessageId)
 
-			if expected.DataRow == nil {
-				testutils.AssertNull(t, actualDataRow)
+			if expected.Message == nil {
+				testutils.AssertNull(t, actualMessage)
 			} else {
-				AssertShippingDataRowEquals(t, expected.DataRow, actualDataRow)
+				AssertShippingMessageEquals(t, expected.Message, actualMessage)
 			}
 
 			testutils.AssertErrorEquals(t, expected.Error, err)
@@ -223,7 +223,7 @@ func TestQueuePop(t *testing.T) {
 func TestQueueTransferTo(t *testing.T) {
 	type transferInputVals struct {
 		Error   error
-		DataRow mutator.MappedFieldValues
+		Message mutator.MappedFieldValues
 	}
 
 	type transferExpectedVals struct {
@@ -238,7 +238,7 @@ func TestQueueTransferTo(t *testing.T) {
 				Name: "transfers good values",
 				Input: &transferInputVals{
 					Error: nil,
-					DataRow: mutator.MappedFieldValues{
+					Message: mutator.MappedFieldValues{
 						shipping.NameKey: "test1",
 					},
 				},
@@ -250,7 +250,7 @@ func TestQueueTransferTo(t *testing.T) {
 				Name: "returns error for mismatched types",
 				Input: &transferInputVals{
 					Error: nil,
-					DataRow: mutator.MappedFieldValues{
+					Message: mutator.MappedFieldValues{
 						shipping.NameKey: 1,
 					},
 				},
@@ -262,7 +262,7 @@ func TestQueueTransferTo(t *testing.T) {
 				Name: "handles error from backend",
 				Input: &transferInputVals{
 					Error: mockError,
-					DataRow: mutator.MappedFieldValues{
+					Message: mutator.MappedFieldValues{
 						shipping.NameKey: "test",
 					},
 				},
@@ -274,7 +274,7 @@ func TestQueueTransferTo(t *testing.T) {
 		Func: func(input *transferInputVals, expected *transferExpectedVals) {
 			mockBackendSrc := &MockQueueBackendOps{
 				ErrorRval:   input.Error,
-				DataRowRval: input.DataRow,
+				MessageRval: input.Message,
 				SizeRval:    1,
 			}
 			srcQueue := shipping.NewPendingShipmentQueue()
@@ -291,8 +291,8 @@ func TestQueueTransferTo(t *testing.T) {
 				return
 			}
 
-			testutils.AssertEquals(t, 1, len(mockBackendDest.DataRowsInput))
-			AssertShippingDataRowFieldsEqualOrDefault(t, input.DataRow, mockBackendDest.DataRowsInput[0])
+			testutils.AssertEquals(t, 1, len(mockBackendDest.MessagesInput))
+			AssertShippingMessageFieldsEqualOrDefault(t, input.Message, mockBackendDest.MessagesInput[0])
 		},
 	}
 

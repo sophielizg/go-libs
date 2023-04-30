@@ -21,9 +21,9 @@ func (b *HashTableBackend) SetConnection(conn *Connection) {
 }
 
 func (b *HashTableBackend) Register() error {
-	if err := validateAutoGenerateSettings(b.settings.DataRowSettings); err != nil {
+	if err := validateAutoGenerateSettings(b.settings.DataSettings); err != nil {
 		return err
-	} else if err := validateAutoGenerateSettings(b.settings.HashKeySettings); err != nil {
+	} else if err := validateAutoGenerateSettings(b.settings.KeySettings); err != nil {
 		return err
 	}
 
@@ -39,94 +39,92 @@ func (b *HashTableBackend) Drop() error {
 	return nil
 }
 
-func (b *HashTableBackend) Scan(batchSize int) (chan *datastore.ScanFields, chan error) {
-	outChan := make(chan *datastore.ScanFields, batchSize)
+func (b *HashTableBackend) Count() (int, error) {
+	return len(b.conn.GetHashTable(b.settings)), nil
+}
+
+func (b *HashTableBackend) Scan(batchSize int) (chan mutator.MappedFieldValues, chan error) {
+	outChan := make(chan mutator.MappedFieldValues, batchSize)
 	errorChan := make(chan error, 1)
 
 	go func() {
 		defer close(outChan)
 		defer close(errorChan)
 
-		for haskKeyStr, dataRow := range b.conn.GetHashTable(b.settings) {
-			hashKey, err := unstringifyKey(haskKeyStr)
-			if err != nil {
-				errorChan <- err
-			} else {
-				outChan <- &datastore.ScanFields{
-					DataRow: dataRow,
-					HashKey: hashKey,
-				}
-			}
+		for _, entry := range b.conn.GetHashTable(b.settings) {
+			outChan <- entry
 		}
 	}()
 
 	return outChan, errorChan
 }
 
-func (b *HashTableBackend) GetMultiple(hashKeys []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error) {
+func (b *HashTableBackend) Get(keys []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error) {
 	table := b.conn.GetHashTable(b.settings)
 
-	dataRows := make([]mutator.MappedFieldValues, len(hashKeys))
-	for i, hashKey := range hashKeys {
-		hashKeyStr, err := stringifyKey(hashKey)
+	data := make([]mutator.MappedFieldValues, len(keys))
+	for i, key := range keys {
+		keyStr, err := stringifyKey(key)
 		if err != nil {
 			return nil, err
 		}
 
-		dataRows[i] = table[hashKeyStr]
+		data[i] = table[keyStr]
 	}
 
-	return dataRows, nil
+	return data, nil
 }
 
-func (b *HashTableBackend) AddMultiple(hashKeys []mutator.MappedFieldValues, dataRows []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error) {
+func (b *HashTableBackend) Add(entries []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error) {
 	table := b.conn.GetHashTable(b.settings)
 
-	for i := range hashKeys {
-		hashKeyStr, err := stringifyKey(hashKeys[i])
+	for _, entry := range entries {
+		key := getKeyFromEntry(b.settings, entry)
+		keyStr, err := stringifyKey(key)
 		if err != nil {
 			return nil, err
-		} else if table[hashKeyStr] != nil {
-			return nil, HashKeyExistsError
+		} else if table[keyStr] != nil {
+			return nil, KeyExistsError
 		}
 
-		table[hashKeyStr] = dataRows[i]
+		table[keyStr] = entry
 	}
 
 	b.conn.SetHashTable(b.settings, table)
-	return hashKeys, nil
+	return entries, nil
 }
 
-func (b *HashTableBackend) UpdateMultiple(hashKeys []mutator.MappedFieldValues, dataRows []mutator.MappedFieldValues) error {
+func (b *HashTableBackend) Update(entries []mutator.MappedFieldValues) error {
 	table := b.conn.GetHashTable(b.settings)
 
-	for i := range hashKeys {
-		hashKeyStr, err := stringifyKey(hashKeys[i])
+	for _, entry := range entries {
+		key := getKeyFromEntry(b.settings, entry)
+		keyStr, err := stringifyKey(key)
 		if err != nil {
 			return err
-		} else if table[hashKeyStr] == nil {
-			return HashKeyDoesNotExistError
+		} else if table[keyStr] == nil {
+			return KeyDoesNotExistError
 		}
 
-		table[hashKeyStr] = dataRows[i]
+		table[keyStr] = entry
 	}
 
 	b.conn.SetHashTable(b.settings, table)
 	return nil
 }
 
-func (b *HashTableBackend) DeleteMultiple(hashKeys []mutator.MappedFieldValues) error {
+func (b *HashTableBackend) Delete(keys []mutator.MappedFieldValues) error {
 	table := b.conn.GetHashTable(b.settings)
 
-	for i := range hashKeys {
-		hashKeyStr, err := stringifyKey(hashKeys[i])
+	for _, key := range keys {
+		keyStr, err := stringifyKey(key)
 		if err != nil {
 			return err
-		} else if table[hashKeyStr] == nil {
-			return HashKeyDoesNotExistError
+		} else if table[keyStr] == nil {
+			return KeyDoesNotExistError
 		}
 
-		delete(table, hashKeyStr)
+		delete(table, keyStr)
 	}
 
 	b.conn.SetHashTable(b.settings, table)

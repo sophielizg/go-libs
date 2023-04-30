@@ -1,18 +1,10 @@
 package fields
 
-import "github.com/sophielizg/go-libs/datastore/mutator"
-
 type Setting = int8
 
 const (
 	AutoGenerateOption Setting = iota
 )
-
-type DataRowSettings struct {
-	EmptyValues   mutator.MappedFieldValues
-	FieldSettings FieldSettings
-	FieldOrder    OrderedFieldKeys
-}
 
 type FieldSettings = map[string]*FieldSetting
 
@@ -51,16 +43,4 @@ func WithNumBytes(fieldName string, numBytes int) func(settings FieldSettings) {
 		setting := settingForFieldName(settings, fieldName)
 		setting.NumBytes = numBytes
 	}
-}
-
-func MergeSettings(settingsList ...FieldSettings) FieldSettings {
-	merged := FieldSettings{}
-
-	for _, settings := range settingsList {
-		for fieldName, setting := range settings {
-			merged[fieldName] = setting
-		}
-	}
-
-	return merged
 }

@@ -2,75 +2,72 @@ package datastore
 
 import (
 	"github.com/sophielizg/go-libs/datastore/mutator"
+	"github.com/sophielizg/go-libs/datastore/queries"
 )
 
-type Queue[V any, PV mutator.Mutatable[V]] struct {
-	Backend        QueueBackendOps
+type Queue[M any, PM mutator.Mutatable[M]] struct {
+	backend        QueueBackendQueries
 	Settings       *TableSettings
-	DataRowFactory mutator.MutatableFactory[V, PV]
+	MessageFactory mutator.MutatableFactory[M, PM]
+	*queries.Countable
+	*queries.MessageReceiveable[M, PM]
 }
 
-func (q *Queue[V, PV]) Init() {
-	q.Settings.ApplyOption(WithDataRow[V, PV]())
+func (q *Queue[M, PM]) Init() {
+	q.Settings.ApplyOption(WithEntry[M, PM]())
+	q.Countable = &queries.Countable{}
+	q.MessageReceiveable = &queries.MessageReceiveable[M, PM]{}
 }
 
-func (q *Queue[V, PV]) GetSettings() *TableSettings {
+func (q *Queue[M, PM]) GetSettings() *TableSettings {
 	return q.Settings
 }
 
-func (q *Queue[V, PV]) SetBackend(backend QueueBackendOps) {
-	q.Backend = backend
+func (q *Queue[M, PM]) SetBackend(backend QueueBackendQueries) {
+	q.backend = backend
+	q.Countable.SetBackend(backend)
+	q.MessageReceiveable.SetBackend(backend)
 }
 
-func (q *Queue[V, PV]) Size() (int, error) {
-	return q.Backend.Size()
+func (q *Queue[M, PM]) SendMessage(messages ...PM) error {
+	return q.backend.SendMessage(q.MessageFactory.CreateFieldValuesList(messages))
 }
 
-func (q *Queue[V, PV]) Push(messages ...PV) error {
-	return q.Backend.Push(q.DataRowFactory.CreateFieldValuesList(messages))
-}
-
-func (q *Queue[V, PV]) Pop() (string, PV, error) {
-	messageId, messageFields, err := q.Backend.Pop()
-	if err != nil {
-		return "", nil, err
-	}
-
-	message, err := q.DataRowFactory.CreateFromFields(messageFields)
-	return messageId, message, err
-}
-
-func (q *Queue[V, PV]) AckSuccess(messageId string) error {
-	return q.Backend.AckSuccess(messageId)
-}
-
-func (q *Queue[V, PV]) AckFailure(messageId string) error {
-	return q.Backend.AckFailure(messageId)
-}
-
-func (q *Queue[V, PV]) TransferTo(newQueue *Queue[V, PV], batchSize int) error {
-	buf := make([]PV, 0, batchSize)
+func (q *Queue[M, PM]) TransferTo(newQueue *Queue[M, PM], batchSize int) error {
+	bufMessages := make([]PM, 0, batchSize)
+	bufIds := make([]string, 0, batchSize)
 	for {
-		size, err := q.Size()
+		size, err := q.Count()
 		if err != nil {
 			return err
 		} else if size == 0 {
 			break
 		}
 
-		_, message, err := q.Pop()
+		id, message, err := q.RecieveMessage()
 		if err != nil {
 			return err
 		}
 
-		buf = append(buf, message)
-		if len(buf) == batchSize {
-			if err = newQueue.Push(buf...); err != nil {
+		bufMessages = append(bufMessages, message)
+		bufIds = append(bufIds, id)
+		if len(bufMessages) == batchSize {
+			if err = newQueue.SendMessage(bufMessages...); err != nil {
+				q.AckFailure(bufIds...)
 				return err
 			}
-			buf = make([]PV, 0, batchSize)
+
+			q.AckSuccess(bufIds...)
+			bufMessages = make([]PM, 0, batchSize)
+			bufIds = make([]string, 0, batchSize)
 		}
 	}
 
-	return newQueue.Push(buf...)
+	if err := newQueue.SendMessage(bufMessages...); err != nil {
+		q.AckFailure(bufIds...)
+		return err
+	}
+
+	q.AckSuccess(bufIds...)
+	return nil
 }

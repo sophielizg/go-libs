@@ -4,14 +4,8 @@ import (
 	"github.com/sophielizg/go-libs/datastore/mutator"
 )
 
-type ScanFields struct {
-	DataRow mutator.MappedFieldValues
-	HashKey mutator.MappedFieldValues
-	SortKey mutator.MappedFieldValues
-}
-
-func scan[O any](inChan chan *ScanFields, inErrorChan chan error, convertFieldsToOutput func(*ScanFields) (O, error)) (chan O, chan error) {
-	outChan := make(chan O, 1)
+func scan[M any, PM mutator.Mutatable[M]](inChan chan mutator.MappedFieldValues, inErrorChan chan error, entryFactory *mutator.MutatableFactory[M, PM]) (chan PM, chan error) {
+	outChan := make(chan PM, 1)
 	outErrorChan := make(chan error, 1)
 	go func() {
 		defer close(outChan)
@@ -33,12 +27,11 @@ func scan[O any](inChan chan *ScanFields, inErrorChan chan error, convertFieldsT
 					break
 				}
 
-				converted, err := convertFieldsToOutput(inFields)
-
+				entry, err := entryFactory.CreateFromFields(inFields)
 				if err != nil {
 					outErrorChan <- err
 				} else {
-					outChan <- converted
+					outChan <- entry
 				}
 			}
 

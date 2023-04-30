@@ -59,10 +59,10 @@ func TestTopicSettings(t *testing.T) {
 	actual := topic.GetSettings()
 
 	testutils.AssertEquals(t, "Shipped", actual.Name)
-	testutils.AssertEquals(t, &shipping.DataRowSettings, actual.DataRowSettings)
+	testutils.AssertEquals(t, &shipping.DataRowSettings, actual.DataSettings)
 
 	// Check that defaults are generated
-	AssertShippingDataRowFieldsEqualOrDefault(t, mutator.MappedFieldValues{}, actual.DataRowSettings.EmptyValues)
+	AssertShippingDataRowFieldsEqualOrDefault(t, mutator.MappedFieldValues{}, actual.EmptyValues)
 }
 
 func TestTopicSubscribe(t *testing.T) {

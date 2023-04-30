@@ -3,11 +3,12 @@ package inmemory
 import (
 	"encoding/json"
 
+	"github.com/sophielizg/go-libs/datastore"
 	"github.com/sophielizg/go-libs/datastore/fields"
 	"github.com/sophielizg/go-libs/datastore/mutator"
 )
 
-func validateAutoGenerateSettings(settings *fields.DataRowSettings) error {
+func validateAutoGenerateSettings(settings *fields.RowSettings) error {
 	if settings == nil {
 		return nil
 	}
@@ -39,4 +40,14 @@ func unstringifyKey(stringified string) (mutator.MappedFieldValues, error) {
 	}
 
 	return key, nil
+}
+
+func getKeyFromEntry(settings *datastore.TableSettings, entry mutator.MappedFieldValues) mutator.MappedFieldValues {
+	key := mutator.MappedFieldValues{}
+
+	for _, fieldName := range settings.KeySettings.FieldOrder {
+		key[fieldName] = entry[fieldName]
+	}
+
+	return key
 }

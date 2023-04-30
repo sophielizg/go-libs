@@ -6,10 +6,11 @@ import (
 )
 
 type TableSettings struct {
-	Name            string
-	DataRowSettings *fields.DataRowSettings
-	HashKeySettings *fields.DataRowSettings
-	SortKeySettings *fields.DataRowSettings
+	Name           string
+	EmptyValues    mutator.MappedFieldValues
+	DataSettings   *fields.RowSettings
+	KeySettings    *fields.RowSettings
+	SortFieldNames fields.SortFieldNames
 }
 
 func (s *TableSettings) ApplyOption(option func(*TableSettings)) {
@@ -32,41 +33,27 @@ func WithTableName(name string) func(*TableSettings) {
 	}
 }
 
-func WithDataRowSettings(dataRowSettings *fields.DataRowSettings) func(*TableSettings) {
+func WithDataSettings(rowSettings *fields.RowSettings) func(*TableSettings) {
 	return func(settings *TableSettings) {
-		settings.DataRowSettings = dataRowSettings
+		settings.DataSettings = rowSettings
 	}
 }
 
-func WithHashKeySettings(dataRowSettings *fields.DataRowSettings) func(*TableSettings) {
+func WithKeySettings(rowSettings *fields.RowSettings) func(*TableSettings) {
 	return func(settings *TableSettings) {
-		settings.HashKeySettings = dataRowSettings
+		settings.KeySettings = rowSettings
 	}
 }
 
-func WithSortKeySettings(dataRowSettings *fields.DataRowSettings) func(*TableSettings) {
+func WithSortFieldNames(SortFieldNames fields.SortFieldNames) func(*TableSettings) {
 	return func(settings *TableSettings) {
-		settings.SortKeySettings = dataRowSettings
+		settings.SortFieldNames = SortFieldNames
 	}
 }
 
-func WithDataRow[V any, PV mutator.Mutatable[V]]() func(*TableSettings) {
+func WithEntry[E any, PE mutator.Mutatable[E]]() func(*TableSettings) {
 	return func(settings *TableSettings) {
-		empty := mutator.MutatableFactory[V, PV]{}.Create()
-		settings.DataRowSettings.EmptyValues = empty.Mutator().GetFields()
-	}
-}
-
-func WithHashKey[H any, PH mutator.Mutatable[H]]() func(*TableSettings) {
-	return func(settings *TableSettings) {
-		empty := mutator.MutatableFactory[H, PH]{}.Create()
-		settings.HashKeySettings.EmptyValues = empty.Mutator().GetFields()
-	}
-}
-
-func WithSortKey[S any, PS mutator.Mutatable[S]]() func(*TableSettings) {
-	return func(settings *TableSettings) {
-		empty := mutator.MutatableFactory[S, PS]{}.Create()
-		settings.SortKeySettings.EmptyValues = empty.Mutator().GetFields()
+		empty := mutator.MutatableFactory[E, PE]{}.Create()
+		settings.EmptyValues = empty.Mutator().GetFields()
 	}
 }

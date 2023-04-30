@@ -2,44 +2,29 @@ package datastore
 
 import (
 	"github.com/sophielizg/go-libs/datastore/mutator"
+	"github.com/sophielizg/go-libs/datastore/queries"
 )
 
-// A table to which data can be appended
-type AppendTable[V any, PV mutator.Mutatable[V]] struct {
-	Backend        AppendTableBackendOps
-	Settings       *TableSettings
-	DataRowFactory mutator.MutatableFactory[V, PV]
+type AppendTable[E any, PE mutator.Mutatable[E]] struct {
+	Settings *TableSettings
+	*queries.Scannable[E, PE]
+	*queries.Addable[E, PE]
+	*queries.Transferable[E, PE]
 }
 
-func (t *AppendTable[V, PV]) Init() {
-	t.Settings.ApplyOption(WithDataRow[V, PV]())
+func (t *AppendTable[E, PE]) Init() {
+	t.Settings.ApplyOption(WithEntry[E, PE]())
+	t.Scannable = &queries.Scannable[E, PE]{}
+	t.Addable = &queries.Addable[E, PE]{}
+	t.Transferable = &queries.Transferable[E, PE]{}
 }
 
-func (t *AppendTable[V, PV]) GetSettings() *TableSettings {
+func (t *AppendTable[E, PE]) GetSettings() *TableSettings {
 	return t.Settings
 }
 
-func (t *AppendTable[V, PV]) SetBackend(tableBackend AppendTableBackendOps) {
-	t.Backend = tableBackend
-}
-
-// Scans the entire table, holding batchSize data rows in memory at a time
-func (t *AppendTable[V, PV]) Scan(batchSize int) (chan PV, chan error) {
-	fieldsChan, errChan := t.Backend.Scan(batchSize)
-	return scan(fieldsChan, errChan, func(fields *ScanFields) (PV, error) {
-		return t.DataRowFactory.CreateFromFields(fields.DataRow)
-	})
-}
-
-// Adds data to the table
-func (t *AppendTable[V, PV]) Add(data ...PV) error {
-	return t.Backend.AddMultiple(t.DataRowFactory.CreateFieldValuesList(data))
-}
-
-func (t *AppendTable[V, PV]) TransferTo(newTable *AppendTable[V, PV], batchSize int) error {
-	dataChan, errorChan := t.Scan(batchSize)
-
-	return transfer(batchSize, dataChan, errorChan, func(buf []PV) error {
-		return newTable.Add(buf...)
-	})
+func (t *AppendTable[E, PE]) SetBackend(tableBackend AppendTableBackendQueries) {
+	t.Scannable.SetBackend(tableBackend)
+	t.Addable.SetBackend(tableBackend)
+	t.Transferable.SetBackend(tableBackend)
 }
