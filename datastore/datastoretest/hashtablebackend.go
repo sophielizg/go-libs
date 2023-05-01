@@ -1,6 +1,7 @@
 package datastoretest
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/sophielizg/go-libs/datastore"
@@ -11,16 +12,21 @@ import (
 
 // HELPERS
 
-func AssertMockDataRowEquals(t *testing.T, expected, actual *MockDataRow) {
-	t.Helper()
+func GenerateEntries(numEntries int, idPrefix string) []*MockEntry {
+	entries := make([]*MockEntry, numEntries)
 
-	testutils.AssertEquals(t, expected.Data, actual.Data)
-}
+	for i := 0; i < numEntries; i += 1 {
+		entries[i] = &MockEntry{
+			Key: &MockKey{
+				Id: idPrefix + strconv.Itoa(i),
+			},
+			Data: &MockData{
+				Data: strconv.Itoa(i),
+			},
+		}
+	}
 
-func AssertMockHashKeyEquals(t *testing.T, expected, actual *MockHashKey) {
-	t.Helper()
-
-	testutils.AssertEquals(t, expected.Id, actual.Id)
+	return entries
 }
 
 // MOCKS
@@ -30,107 +36,168 @@ const (
 	IdKey   = "Id"
 )
 
-type MockDataRow struct {
-	Data         fields.String
-	fieldMutator *mutator.FieldMutator
+type MockData struct {
+	Data fields.String
 }
 
-func (v *MockDataRow) Mutator() *mutator.FieldMutator {
-	if v.fieldMutator == nil {
-		v.fieldMutator = mutator.NewFieldMutator(
-			mutator.WithAddress(DataKey, &v.Data),
-		)
-	}
-
-	return v.fieldMutator
+func (d *MockData) Mutator() *mutator.FieldMutator {
+	return mutator.NewFieldMutator(
+		mutator.WithAddress(DataKey, &d.Data),
+	)
 }
 
-var MockDataRowSettings = fields.DataRowSettings{
+var MockDataSettings = &fields.RowSettings{
 	FieldSettings: fields.NewFieldSettings(
 		fields.WithNumBytes(DataKey, 63),
 	),
 	FieldOrder: fields.OrderedFieldKeys{DataKey},
 }
 
-type MockHashKey struct {
-	Id           fields.String
-	fieldMutator *mutator.FieldMutator
+type MockKey struct {
+	Id fields.String
 }
 
-func (v *MockHashKey) Mutator() *mutator.FieldMutator {
-	if v.fieldMutator == nil {
-		v.fieldMutator = mutator.NewFieldMutator(
-			mutator.WithAddress(IdKey, &v.Id),
-		)
-	}
-
-	return v.fieldMutator
+func (k *MockKey) Mutator() *mutator.FieldMutator {
+	return mutator.NewFieldMutator(
+		mutator.WithAddress(IdKey, &k.Id),
+	)
 }
 
-var MockHashKeySettings = fields.DataRowSettings{
+var MockKeySettings = &fields.RowSettings{
 	FieldSettings: fields.NewFieldSettings(
 		fields.WithNumBytes(IdKey, 63),
 	),
 	FieldOrder: fields.OrderedFieldKeys{IdKey},
 }
 
-type MockTable = datastore.HashTable[MockDataRow, *MockDataRow, MockHashKey, *MockHashKey]
+type MockEntry = fields.KeyedEntry[MockKey, *MockKey, MockData, *MockData]
 
-type MockTableScan = datastore.HashTableScan[MockDataRow, *MockDataRow, MockHashKey, *MockHashKey]
+type MockTable = datastore.HashTable[MockKey, *MockKey, MockEntry, *MockEntry]
 
 func NewMockTable() *MockTable {
 	return &MockTable{
 		Settings: datastore.NewTableSettings(
 			datastore.WithTableName("Test"),
-			datastore.WithDataRowSettings(&MockDataRowSettings),
-			datastore.WithHashKeySettings(&MockHashKeySettings),
+			datastore.WithDataSettings(MockDataSettings),
+			datastore.WithKeySettings(MockKeySettings),
 		),
 	}
 }
 
 // TESTS
 
-func TestHashTableWithBackend(t *testing.T, mockTable *MockTable) {
+func TestHashTableCount(t *testing.T, mockTable *MockTable) {
 	t.Helper()
 
-	testKeys := []*MockHashKey{
-		{Id: "test1"},
-		{Id: "test2"},
-		{Id: "test3"},
-	}
-	testData := []*MockDataRow{
-		{Data: "test1"},
-		{Data: "test2"},
-		{Data: "test3"},
-	}
-	updateKey := &MockHashKey{Id: "test1"}
-	updateData := &MockDataRow{Data: "test updated"}
+	entries := GenerateEntries(1, "testcount")
 
-	_, err := mockTable.AddMultiple(testKeys, testData)
+	_, err := mockTable.Add(entries...)
 	testutils.AssertOk(t, err)
 
-	getActualData, err := mockTable.Get(testKeys...)
+	count, err := mockTable.Count()
 	testutils.AssertOk(t, err)
-	testutils.AssertEquals(t, len(testData), len(getActualData))
-	for i := range testData {
-		AssertMockDataRowEquals(t, testData[i], getActualData[i])
-	}
+	testutils.AssertTrue(t, count > 0)
 
-	err = mockTable.Update(updateKey, updateData)
+	err = mockTable.Delete(fields.KeysOfEntries(entries)...)
+	testutils.AssertOk(t, err)
+}
+
+// TODO
+func TestHashTableScan(t *testing.T, mockTable *MockTable) {
+	t.Helper()
+
+	entries := GenerateEntries(1, "testcount")
+
+	_, err := mockTable.Add(entries...)
 	testutils.AssertOk(t, err)
 
-	actualUpdatedData, err := mockTable.Get(updateKey)
+	count, err := mockTable.Count()
 	testutils.AssertOk(t, err)
-	testutils.AssertEquals(t, 1, len(actualUpdatedData))
-	AssertMockDataRowEquals(t, updateData, actualUpdatedData[0])
+	testutils.AssertTrue(t, count > 0)
 
-	err = mockTable.Delete(testKeys...)
+	err = mockTable.Delete(fields.KeysOfEntries(entries)...)
+	testutils.AssertOk(t, err)
+}
+
+func TestHashTableGet(t *testing.T, mockTable *MockTable) {
+	t.Helper()
+
+	entries := GenerateEntries(1, "testget")
+	entry := entries[0]
+
+	_, err := mockTable.Add(entry)
 	testutils.AssertOk(t, err)
 
-	actualDataAfterDelete, err := mockTable.Get(testKeys...)
+	actualEntries, err := mockTable.Get(entry.Key)
 	testutils.AssertOk(t, err)
-	testutils.AssertEquals(t, len(testData), len(actualDataAfterDelete))
-	for i := range testData {
-		testutils.AssertNull(t, actualDataAfterDelete[i])
-	}
+	testutils.AssertEquals(t, 1, len(actualEntries))
+	testutils.AssertEquals(t, entry.Key.Id, actualEntries[0].Key.Id)
+	testutils.AssertEquals(t, entry.Data.Data, actualEntries[0].Data.Data)
+
+	err = mockTable.Delete(entry.Key)
+	testutils.AssertOk(t, err)
+}
+
+func TestHashTableAdd(t *testing.T, mockTable *MockTable) {
+	t.Helper()
+
+	entries := GenerateEntries(1, "testadd")
+	entry := entries[0]
+
+	actualAddEntries, err := mockTable.Add(entry)
+	testutils.AssertOk(t, err)
+	testutils.AssertEquals(t, 1, len(actualAddEntries))
+	testutils.AssertEquals(t, entry.Key.Id, actualAddEntries[0].Key.Id)
+	testutils.AssertEquals(t, entry.Data.Data, actualAddEntries[0].Data.Data)
+
+	actualGetEntries, err := mockTable.Get(entry.Key)
+	testutils.AssertOk(t, err)
+	testutils.AssertEquals(t, 1, len(actualGetEntries))
+
+	err = mockTable.Delete(entry.Key)
+	testutils.AssertOk(t, err)
+}
+
+func TestHashTableUpdate(t *testing.T, mockTable *MockTable) {
+	t.Helper()
+
+	entries := GenerateEntries(1, "testupdate")
+	entry := entries[0]
+
+	_, err := mockTable.Add(entry)
+	testutils.AssertOk(t, err)
+
+	entry.Data.Data = "updated"
+
+	err = mockTable.Update(entry)
+	testutils.AssertOk(t, err)
+
+	actualEntries, err := mockTable.Get(entry.Key)
+	testutils.AssertOk(t, err)
+	testutils.AssertEquals(t, 1, len(actualEntries))
+	testutils.AssertEquals(t, entry.Data.Data, actualEntries[0].Data.Data)
+
+	err = mockTable.Delete(entry.Key)
+	testutils.AssertOk(t, err)
+}
+
+func TestHashTableDelete(t *testing.T, mockTable *MockTable) {
+	t.Helper()
+
+	entries := GenerateEntries(1, "testdelete")
+	entry := entries[0]
+
+	_, err := mockTable.Add(entry)
+	testutils.AssertOk(t, err)
+
+	actualEntriesBeforeDelete, err := mockTable.Get(entry.Key)
+	testutils.AssertOk(t, err)
+	testutils.AssertEquals(t, 1, len(actualEntriesBeforeDelete))
+
+	err = mockTable.Delete(entry.Key)
+	testutils.AssertOk(t, err)
+
+	actualEntriesAfterDelete, err := mockTable.Get(entry.Key)
+	testutils.AssertOk(t, err)
+	testutils.AssertEquals(t, 0, len(actualEntriesAfterDelete))
 }

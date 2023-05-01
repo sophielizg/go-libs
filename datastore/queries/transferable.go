@@ -2,23 +2,13 @@ package queries
 
 import "github.com/sophielizg/go-libs/datastore/mutator"
 
-type TransferableBackend interface {
-	ScannableBackend
-	AddableBackend
-}
-
 type Transferable[E any, PE mutator.Mutatable[E]] struct {
-	Scannable[E, PE]
-	Addable[E, PE]
-}
-
-func (t *Transferable[E, PE]) SetBackend(tableBackend TransferableBackend) {
-	t.Scannable.SetBackend(tableBackend)
-	t.Addable.SetBackend(tableBackend)
+	Scanable *Scanable[E, PE]
+	Addable  *Addable[E, PE]
 }
 
 func (t *Transferable[E, PE]) TransferTo(newTable *Transferable[E, PE], batchSize int) error {
-	dataChan, errorChan := t.Scan(batchSize)
+	dataChan, errorChan := t.Scanable.Scan(batchSize)
 
 	for {
 		buf := make([]PE, 0, batchSize)
@@ -47,7 +37,7 @@ func (t *Transferable[E, PE]) TransferTo(newTable *Transferable[E, PE], batchSiz
 		}
 
 		if len(buf) > 0 {
-			_, err := newTable.Add(buf...)
+			_, err := newTable.Addable.Add(buf...)
 			if err != nil {
 				return err
 			}

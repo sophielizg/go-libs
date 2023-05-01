@@ -2,20 +2,20 @@ package queries
 
 import "github.com/sophielizg/go-libs/datastore/mutator"
 
-type ScannableBackend interface {
+type ScanableBackend interface {
 	Scan(batchSize int) (chan mutator.MappedFieldValues, chan error)
 }
 
-type Scannable[E any, PE mutator.Mutatable[E]] struct {
-	backend      ScannableBackend
+type Scanable[E any, PE mutator.Mutatable[E]] struct {
+	backend      ScanableBackend
 	entryFactory mutator.MutatableFactory[E, PE]
 }
 
-func (s *Scannable[E, PE]) SetBackend(tableBackend ScannableBackend) {
+func (s *Scanable[E, PE]) SetBackend(tableBackend ScanableBackend) {
 	s.backend = tableBackend
 }
 
-func (s *Scannable[E, PE]) Scan(batchSize int) (chan PE, chan error) {
+func (s *Scanable[E, PE]) Scan(batchSize int) (chan PE, chan error) {
 	inChan, inErrorChan := s.backend.Scan(batchSize)
 
 	outChan := make(chan PE, 1)

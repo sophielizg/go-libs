@@ -7,16 +7,19 @@ import (
 
 type AppendTable[E any, PE mutator.Mutatable[E]] struct {
 	Settings *TableSettings
-	*queries.Scannable[E, PE]
+	*queries.Scanable[E, PE]
 	*queries.Addable[E, PE]
 	*queries.Transferable[E, PE]
 }
 
 func (t *AppendTable[E, PE]) Init() {
 	t.Settings.ApplyOption(WithEntry[E, PE]())
-	t.Scannable = &queries.Scannable[E, PE]{}
+	t.Scanable = &queries.Scanable[E, PE]{}
 	t.Addable = &queries.Addable[E, PE]{}
-	t.Transferable = &queries.Transferable[E, PE]{}
+	t.Transferable = &queries.Transferable[E, PE]{
+		Scanable: t.Scanable,
+		Addable:  t.Addable,
+	}
 }
 
 func (t *AppendTable[E, PE]) GetSettings() *TableSettings {
@@ -24,7 +27,6 @@ func (t *AppendTable[E, PE]) GetSettings() *TableSettings {
 }
 
 func (t *AppendTable[E, PE]) SetBackend(tableBackend AppendTableBackendQueries) {
-	t.Scannable.SetBackend(tableBackend)
+	t.Scanable.SetBackend(tableBackend)
 	t.Addable.SetBackend(tableBackend)
-	t.Transferable.SetBackend(tableBackend)
 }

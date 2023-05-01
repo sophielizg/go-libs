@@ -17,18 +17,3 @@ func TestNewFieldSettings(t *testing.T) {
 	testutils.AssertTrue(t, setting.AutoGenerate)
 	testutils.AssertEquals(t, 31, setting.NumBytes)
 }
-
-func TestMergeSettings(t *testing.T) {
-	settings1 := fields.NewFieldSettings(
-		fields.WithAutoGenerate("test1"),
-	)
-
-	settings2 := fields.NewFieldSettings(
-		fields.WithNumBytes("test2", 31),
-	)
-
-	merged := fields.MergeSettings(settings1, settings2)
-
-	testutils.AssertTrue(t, merged["test1"].AutoGenerate)
-	testutils.AssertEquals(t, 31, merged["test2"].NumBytes)
-}

@@ -46,3 +46,12 @@ func (e *KeyedEntry[K, PK, D, PD]) Mutator() *mutator.FieldMutator {
 
 	return e.mutator
 }
+
+func KeysOfEntries[K any, PK mutator.Mutatable[K], D any, PD mutator.Mutatable[D]](entries []*KeyedEntry[K, PK, D, PD]) []PK {
+	keys := make([]PK, len(entries))
+	for i, entry := range entries {
+		keys[i] = entry.Key
+	}
+
+	return keys
+}

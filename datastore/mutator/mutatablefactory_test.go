@@ -11,50 +11,53 @@ import (
 func TestCreateFromFields(t *testing.T) {
 	factory := mutator.MutatableFactory[mocks.MockData, *mocks.MockData]{}
 
-	testutils.Case(t, "succeccfully creates with all fields")
-	var field3 float32
-	fields := mutator.MappedFieldValues{
-		"1": "test",
-		"2": 1,
-		"3": &field3,
-	}
+	testutils.Case(t, "succeccfully creates with all fields", func(t *testing.T) {
+		var field3 float32
+		fields := mutator.MappedFieldValues{
+			"1": "test",
+			"2": 1,
+			"3": &field3,
+		}
 
-	actual, err := factory.CreateFromFields(fields)
-	testutils.AssertOk(t, err)
+		actual, err := factory.CreateFromFields(fields)
+		testutils.AssertOk(t, err)
 
-	expected := &mocks.MockData{
-		MockField1: "test",
-		MockField2: 1,
-		MockField3: &field3,
-	}
-	mocks.AssertMockDataEquals(t, expected, actual)
+		expected := &mocks.MockData{
+			MockField1: "test",
+			MockField2: 1,
+			MockField3: &field3,
+		}
+		mocks.AssertMockDataEquals(t, expected, actual)
+	})
 
-	testutils.Case(t, "succeccfully creates with some fields")
-	fields = mutator.MappedFieldValues{
-		"1": "test",
-	}
+	testutils.Case(t, "succeccfully creates with some fields", func(t *testing.T) {
+		fields := mutator.MappedFieldValues{
+			"1": "test",
+		}
 
-	actual, err = factory.CreateFromFields(fields)
-	testutils.AssertOk(t, err)
+		actual, err := factory.CreateFromFields(fields)
+		testutils.AssertOk(t, err)
 
-	expected = &mocks.MockData{
-		MockField1: "test",
-	}
-	mocks.AssertMockDataEquals(t, expected, actual)
+		expected := &mocks.MockData{
+			MockField1: "test",
+		}
+		mocks.AssertMockDataEquals(t, expected, actual)
+	})
 
-	testutils.Case(t, "returns error for type mismatch")
-	fields = mutator.MappedFieldValues{
-		"1": 1,
-	}
+	testutils.Case(t, "returns error for type mismatch", func(t *testing.T) {
+		fields := mutator.MappedFieldValues{
+			"1": 1,
+		}
 
-	actual, err = factory.CreateFromFields(fields)
-	testutils.AssertErrorEquals(t, mutator.SetFieldTypeError, err)
+		_, err := factory.CreateFromFields(fields)
+		testutils.AssertErrorEquals(t, mutator.SetFieldTypeError, err)
+	})
+
 }
 
 func TestCreateFromFieldsList(t *testing.T) {
 	factory := mutator.MutatableFactory[mocks.MockData, *mocks.MockData]{}
 
-	testutils.Case(t, "succeccfully creates")
 	fieldsList := []mutator.MappedFieldValues{
 		{"2": 1},
 		{"2": 2},
@@ -79,7 +82,6 @@ func TestCreateFromFieldsList(t *testing.T) {
 func TestCreateFieldValuesList(t *testing.T) {
 	factory := mutator.MutatableFactory[mocks.MockData, *mocks.MockData]{}
 
-	testutils.Case(t, "succeccfully creates")
 	dataList := []*mocks.MockData{
 		{MockField2: 1},
 		{MockField2: 2},

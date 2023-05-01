@@ -16,9 +16,8 @@ type TableBackend[C Connection] interface {
 }
 
 type AppendTableBackendQueries interface {
-	queries.ScannableBackend
+	queries.ScanableBackend
 	queries.AddableBackend
-	queries.TransferableBackend
 }
 
 type AppendTableBackend[C Connection] interface {
@@ -27,10 +26,9 @@ type AppendTableBackend[C Connection] interface {
 }
 
 type HashTableBackendQueries interface {
-	queries.ScannableBackend
+	queries.ScanableBackend
 	queries.CountableBackend
 	queries.CRUDableBackend
-	queries.TransferableBackend
 }
 
 type HashTableBackend[C Connection] interface {
@@ -39,11 +37,10 @@ type HashTableBackend[C Connection] interface {
 }
 
 type SortTableBackendQueries interface {
-	queries.ScannableBackend
+	queries.ScanableBackend
 	queries.CountableBackend
 	queries.CRUDableBackend
 	queries.SortableBackend
-	queries.TransferableBackend
 }
 
 type SortTableBackend[C Connection] interface {

@@ -22,7 +22,21 @@ func TestHashTableBackend(t *testing.T) {
 	)
 	testutils.AssertOk(t, err)
 
-	datastoretest.TestHashTableWithBackend(t, mockTable)
+	testutils.Case(t, "count", func(t *testing.T) {
+		datastoretest.TestHashTableCount(t, mockTable)
+	})
+	testutils.Case(t, "get", func(t *testing.T) {
+		datastoretest.TestHashTableGet(t, mockTable)
+	})
+	testutils.Case(t, "add", func(t *testing.T) {
+		datastoretest.TestHashTableAdd(t, mockTable)
+	})
+	testutils.Case(t, "update", func(t *testing.T) {
+		datastoretest.TestHashTableUpdate(t, mockTable)
+	})
+	testutils.Case(t, "delete", func(t *testing.T) {
+		datastoretest.TestHashTableDelete(t, mockTable)
+	})
 
 	mockTableBackend.Drop()
 }

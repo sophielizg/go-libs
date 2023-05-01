@@ -62,14 +62,16 @@ func (b *HashTableBackend) Scan(batchSize int) (chan mutator.MappedFieldValues, 
 func (b *HashTableBackend) Get(keys []mutator.MappedFieldValues) ([]mutator.MappedFieldValues, error) {
 	table := b.conn.GetHashTable(b.settings)
 
-	data := make([]mutator.MappedFieldValues, len(keys))
-	for i, key := range keys {
+	data := make([]mutator.MappedFieldValues, 0, len(keys))
+	for _, key := range keys {
 		keyStr, err := stringifyKey(key)
 		if err != nil {
 			return nil, err
 		}
 
-		data[i] = table[keyStr]
+		if table[keyStr] != nil {
+			data = append(data, table[keyStr])
+		}
 	}
 
 	return data, nil
