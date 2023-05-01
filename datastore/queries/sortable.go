@@ -63,7 +63,7 @@ func (s *Sortable[K, PK, E, PE, C, PC]) GetWithSortComparator(key PK, comparator
 	return s.entryFactory.CreateFromFieldsList(entryFieldsList)
 }
 
-func (s *Sortable[K, PK, E, PE, C, PC]) UpdateWithSortKey(entry PE, comparator PC) error {
+func (s *Sortable[K, PK, E, PE, C, PC]) UpdateWithSortComparator(entry PE, comparator PC) error {
 	if err := s.validateComparator(comparator); err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func (s *Sortable[K, PK, E, PE, C, PC]) UpdateWithSortKey(entry PE, comparator P
 	)
 }
 
-func (s *Sortable[K, PK, E, PE, C, PC]) DeleteWithSortKey(key PK, comparator PC) error {
+func (s *Sortable[K, PK, E, PE, C, PC]) DeleteWithSortComparator(key PK, comparator PC) error {
 	if err := s.validateComparator(comparator); err != nil {
 		return err
 	}

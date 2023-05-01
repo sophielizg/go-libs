@@ -43,11 +43,17 @@ func AssertMockNonKeyedEntryEquals(t *testing.T, expected, actual *MockNonKeyedE
 	testutils.AssertEquals(t, expected.Data.Data, actual.Data.Data)
 }
 
+func AssertMockKeyEquals(t *testing.T, expected, actual *MockKey) {
+	t.Helper()
+
+	testutils.AssertEquals(t, expected.Id, actual.Id)
+}
+
 func AssertMockKeyedEntryEquals(t *testing.T, expected, actual *MockKeyedEntry) {
 	t.Helper()
 
+	AssertMockKeyEquals(t, expected.Key, actual.Key)
 	testutils.AssertEquals(t, expected.Data.Data, actual.Data.Data)
-	testutils.AssertEquals(t, expected.Key.Id, actual.Key.Id)
 }
 
 func AssertMockNonKeyedEntryFieldsEqual(t *testing.T, expected, actual mutator.MappedFieldValues) {
@@ -60,7 +66,7 @@ func AssertMockNonKeyedEntryFieldsEqual(t *testing.T, expected, actual mutator.M
 	testutils.AssertEquals(t, expectedDataVal, actualDataVal)
 }
 
-func AssertMockKeyedEntryFieldsEqual(t *testing.T, expected, actual mutator.MappedFieldValues) {
+func AssertMockKeyFieldsEqual(t *testing.T, expected, actual mutator.MappedFieldValues) {
 	t.Helper()
 
 	expectedIdVal, ok := expected[IdKey].(fields.String)
@@ -68,7 +74,14 @@ func AssertMockKeyedEntryFieldsEqual(t *testing.T, expected, actual mutator.Mapp
 	actualIdVal, ok := actual[IdKey].(fields.String)
 	testutils.AssertTrue(t, ok)
 	testutils.AssertEquals(t, expectedIdVal, actualIdVal)
+}
 
-	// the same fields as the non keyed entry should also be present
+func AssertMockKeyedEntryFieldsEqual(t *testing.T, expected, actual mutator.MappedFieldValues) {
+	t.Helper()
+
+	// all key fields should be present and equal
+	AssertMockKeyFieldsEqual(t, expected, actual)
+
+	// the same fields as the non keyed entry should also be present and equal
 	AssertMockNonKeyedEntryFieldsEqual(t, expected, actual)
 }
